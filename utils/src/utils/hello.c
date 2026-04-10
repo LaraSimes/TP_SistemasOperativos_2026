@@ -1,4 +1,5 @@
 #include <utils/hello.h>
+#define PUERTO "8080" // agregue esto para que no me tire error de compilacion
 
 void saludar(char* quien) {
     printf("Hola desde %s!!\n", quien);
@@ -8,7 +9,8 @@ int iniciar_servidor(void)
 {
 	int err;
 	int socket_servidor;
-
+	t_log* logger;
+	
 	struct addrinfo hints, *servinfo;
 
 	memset(&hints, 0, sizeof(hints));
@@ -16,6 +18,7 @@ int iniciar_servidor(void)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
+	
 	err= getaddrinfo(NULL, PUERTO, &hints, &servinfo);
 
 	// Creamos el socket de escucha del servidor
@@ -34,6 +37,7 @@ int iniciar_servidor(void)
 int esperar_cliente(int socket_servidor)
 {
 	// Aceptamos un nuevo cliente
+	t_log* logger; // agregue esto para que no me tire error de compilacion
 	int socket_cliente = accept(socket_servidor,NULL,NULL);
 	log_info(logger, "Se conecto un cliente!");
 	return socket_cliente;
