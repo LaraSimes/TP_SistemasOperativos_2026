@@ -1,4 +1,3 @@
-
 #include "main.h"
 
     t_log* logger;
@@ -6,6 +5,7 @@
 
 int main(int argc, char* argv[]) 
 {
+    int cpu_id;
     t_config_valores config_memoria;
 
     logger = log_create("kernel_memory.log","Kernel Memory", 1, LOG_LEVEL_INFO); //log de kernel memory, variable global
@@ -14,7 +14,53 @@ int main(int argc, char* argv[])
 
     cargar_informacion_configuracion(config, &config_memoria,logger);
 
-    log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha);
+    log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
+
+    log_info(logger, "## Memory Stick de %d bytes Conectada", config_memoria.segment_max_size); //log obligatorio
+
+    int server_fd=iniciar_servidor(logger, config_memoria.puerto_escucha); // donde se inicia el servidor
+
+    if(server_fd==-1){
+        log_error(logger, "Fallo al iniciar el servidor"); //analizamos si falla el sv
+        return -1;
+    }
+
+    while(true){ //logica de esperar clientes
+        int cliente_fd=esperar_cliente(logger, server_fd);
+        if(cliente_fd!=-1){
+
+            t_modulo id_recibida; // recibo la identidad a comunicar
+
+            int bytes=recv(cliente_fd,&id_recibida, sizeof(t_modulo),MSG_WAITALL);
+
+            if(bytes>0){ // significa que el/los modulos nos mando su id_identidad, si es igual a 0, se desconecto y si es menor, error
+                
+                int resultado_ok=0;
+                send(cliente_fd, &resultado_ok,sizeof(int),0);
+
+                switch(id_recibida){ //analizo que modulo se conecto a traves del switch
+                    case KERNEL_SCHEDULER:
+                         log_info(logger, "## Kernel Scheduler Conectado - FD del socket: %d", cliente_fd); //log obligatorio
+                    break;
+
+                    case CPU:
+                    recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL); //tomo el id del cpu
+                    log_info(logger, "## CPU %d Conectada", cpu_id); //log obligatorio
+                    break;
+                    
+                    case MEMORY_STICK:
+                    break;
+                } 
+            }else if(bytes==0){
+                    log_info(logger, "Se desconecto el cliente");
+                }else{
+                    log_error(logger, "Error");
+                }
+            close(cliente_fd);
+        }
+    }
+
+    terminar_programa(server_fd,logger,config);
 
     return 0;
 }
@@ -24,7 +70,7 @@ t_config* iniciar_config(void) //funcion de iniciar config y se pasa el archivo 
 	t_config* nuevo_config=config_create("kernel_memory.config");
 	if(nuevo_config==NULL){
 	printf("No se pudo encontrar el archivo de kernel_memory.config");
-	abort();
+	return NULL;
 	}
 
 	return nuevo_config;
@@ -42,3 +88,76 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     log_info(logger, "Configuracion cargada de forma exitosa");
 }
 
+//paso b, fijarse
+
+int iniciar_servidor(t_log* logger,char*puerto)
+{
+	int err;
+	int socket_servidor;
+	
+	struct addrinfo hints;
+    struct addrinfo *servinfo;
+
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+
+	
+	err= getaddrinfo(NULL, puerto, &hints, &servinfo);
+    if(err!=0){
+        log_error(logger,"Error en Getaddrinfo");
+        return -1;
+    }
+
+	// Creamos el socket de escucha del servidor
+	socket_servidor = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol);
+    if(socket_servidor==-1){
+        log_error(logger, "No se pudo crear el socket");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+
+
+	// Asociamos el socket a un puerto
+	err = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
+	err = bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen);
+    if(err==-1){
+        log_error(logger, "Error en el bind");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+	// Escuchamos las conexiones entrantes
+	err = listen(socket_servidor, SOMAXCONN);
+    if(err==-1){
+        log_error(logger, "Error en el listen");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
+
+	freeaddrinfo(servinfo);
+	log_info(logger, "Servidor de Memoria listo para escuchar en el puerto: %s", puerto);
+
+	return socket_servidor;
+}
+
+int esperar_cliente(t_log* logger, int socket_servidor)
+{
+	// Aceptamos un nuevo cliente
+	int socket_cliente = accept(socket_servidor,NULL,NULL);
+    if(socket_cliente==-1){
+        log_error(logger, "Error al aceptar el cliente");
+        return -1;
+    } else{
+        log_info(logger, "Se conecto un cliente! FD: %d", socket_cliente);
+    }
+	return socket_cliente;
+}
+void terminar_programa(int server_fd, t_log* logger, t_config* config)
+{
+	/* Y por ultimo, hay que liberar lo que utilizamos (conexion, log y config) 
+	  con las funciones de las commons y del TP mencionadas en el enunciado */
+		log_destroy(logger);
+		config_destroy(config);	  
+		close(server_fd);
+}

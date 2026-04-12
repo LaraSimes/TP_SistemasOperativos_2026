@@ -6,6 +6,13 @@
 #include <commons/log.h>
 #include <commons/config.h>
 
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <string.h>
+#include "conexiones.h"
+
 typedef struct{
     char* log_level;
     int segment_max_size;
@@ -13,11 +20,15 @@ typedef struct{
     int instruction_delay;
     int compaction_delay;
     char* scripts_basepath;
-    char* puerto_escucha; // puerto donde la memoria va a esperar a los demas. paso b
+    char* puerto_escucha; 
 } t_config_valores;
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger);
 t_config* iniciar_config(void);
 t_log* iniciar_logger(void);
+
+int iniciar_servidor(t_log* logger, char*puerto);
+int esperar_cliente (t_log*logger, int socket_servidor);
+void terminar_programa(int server_fd, t_log* logger, t_config* config);
 
 #endif
