@@ -17,5 +17,5 @@ int main(int argc, char* argv[]) {
     else{
         log_info(logger,"Conectado a Kernel Scheduler");
     }
-    liberar(logger,config,sckt_scheduler)
+    liberar(logger,config,sckt_scheduler);
 }
