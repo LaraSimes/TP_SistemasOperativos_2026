@@ -7,9 +7,9 @@ Pasos a seguir — Kernel Scheduler (1ra entrega)
 
     2. Inicializar logger       // HECHO
 
-    3. Leer archivo de configuración    
+    3. Leer archivo de configuración    // HECHO
 
-    4. Conectarse a Kernel Memory
+    4. Conectarse a Kernel Memory  // HECHO
             Verificar conexión
             Log obligatorio
 

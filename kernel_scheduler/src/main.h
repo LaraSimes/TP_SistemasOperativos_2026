@@ -8,12 +8,11 @@
 #include<commons/config.h>
 #include<readline/readline.h>
 
-#include "config.h"
+#include "configuraciones.h"
+#include "conexiones.h"
 
+t_log* iniciar_logger(t_log_level nivel);
+void obtener_configuracion();
 
-
-t_log* iniciar_logger(void);
-t_config* iniciar_config(char* path);
-char* obtener(char* valor, t_config* config);
 
 #endif /* CLIENT_H_ */

@@ -9,6 +9,11 @@
     Crear proceso inicial (PID 0)
     Levantar el servidor
 */
+    static char* log_level_str;
+    static t_log_level log_level;
+    static char* ip_memoria;
+    static char* puerto_memoria;
+    static char* puerto_escucha;
 
 int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv = argument vector (los valores)
 
@@ -17,29 +22,28 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
 
     t_log* logger;
     t_config* config;
-    
     int conexion;
-    char* ip_memoria;
-    char* puerto_memoria;
-    char* puerto_escucha;
 
-    logger = iniciar_logger();
     config = iniciar_config(config_path);
-
-	ip_memoria = obtener("IP_MEMORIA", config);
-    puerto_memoria = obtener("PUERTO_MEMORIA", config);
-    puerto_escucha = obtener("PUERTO_ESCUCHA", config);
+    obtener_configuracion(config);
+   
+    logger = iniciar_logger(log_level);
 
     log_info(logger, "IP Memoria: %s", ip_memoria); 
     log_info(logger, "Puerto Memoria: %s", puerto_memoria); 
     log_info(logger, "Puerto Escucha: %s", puerto_escucha); 
+    log_info(logger, "log level: %s", log_level_str); 
+
+
+    conexion = crear_conexion(ip_memoria, puerto_memoria);
+
 
     return 0;
 }
 
-t_log *iniciar_logger()
+t_log *iniciar_logger(t_log_level nivel)
 {
-	t_log* nuevo_logger = log_create("kernel_scheduler.log","KERNEL_SCHEDULER",true, LOG_LEVEL_INFO);
+	t_log* nuevo_logger = log_create("kernel_scheduler.log","KERNEL_SCHEDULER",true, nivel);
 	if(nuevo_logger != NULL){
         return nuevo_logger;
     }else{
@@ -47,16 +51,12 @@ t_log *iniciar_logger()
     }
 }
 
-t_config* iniciar_config(char* path){
-	t_config* nuevo_config = config_create(path);
-    if(nuevo_config != NULL){
-        return nuevo_config;
-    }else{
-        printf("Error al cargar config\n");
-        abort();    
-        }
-}
+void obtener_configuracion(t_config* config){
+    log_level_str = obtener_string("LOG_LEVEL", config); 
+    log_level = log_level_from_string(log_level_str);
+	ip_memoria = obtener_string("IP_MEMORIA", config);
+    puerto_memoria = obtener_string("PUERTO_MEMORIA", config);
+    puerto_escucha = obtener_string("PUERTO_ESCUCHA", config);
 
-char* obtener(char* clave, t_config* config){
-    return config_get_string_value(config, clave);
+    return;
 }
