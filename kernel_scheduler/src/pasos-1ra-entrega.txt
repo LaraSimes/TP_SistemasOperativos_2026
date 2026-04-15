@@ -19,7 +19,7 @@ Pasos a seguir — Kernel Scheduler (1ra entrega)
             Prioridad máxima
             Log obligatorio
 
-    6. Iniciar servidor del kernel
+    6. Iniciar servidor del kernel   
 
     7. Aceptar conexiones en loop infinito
             Nunca cerrar el servidor
