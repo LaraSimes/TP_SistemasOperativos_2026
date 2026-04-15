@@ -53,6 +53,17 @@ int main(int argc, char* argv[]) {
 
     log_info(logger, "## Conectado a Kenrnel Scheduler");
 
+    t_modulo modulo_cpu = CPU;
+    if (send(fd_ks, &modulo_cpu, sizeof(int),0) == -1){
+        log_error(logger,"Error identificandose ante Kernel Scheduler");
+        close(fd_km);
+        close(fd_ks);
+        config_destroy(config);
+        log_destroy(logger);
+        return EXIT_FAILURE;
+    }
+    log_info(logger,"Identificado con Kernel Scheduler");
+
     log_info(logger, "CPU %d lista.Esperando PID del Kernel Scheduler",cpu_id);
     pause();
 
