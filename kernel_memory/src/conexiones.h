@@ -2,9 +2,10 @@
 #define CONEXIONES_H_
 
 typedef enum{
-    KERNEL_SCHEDULER, //vale 0
-    CPU,              // vale 1
-    MEMORY_STICK       //vale 2
+    KERNEL_SCHEDULER = 1, 
+    CPU = 2,            
+    MEMORY_STICK = 3,      
+    SWAP = 4
 } t_modulo;
 
 #endif

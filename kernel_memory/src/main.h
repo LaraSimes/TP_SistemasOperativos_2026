@@ -30,5 +30,6 @@ t_log* iniciar_logger(void);
 int iniciar_servidor(t_log* logger, char*puerto);
 int esperar_cliente (t_log*logger, int socket_servidor);
 void terminar_programa(int server_fd, t_log* logger, t_config* config);
+void* manejar_cliente(void* arg);
 
 #endif

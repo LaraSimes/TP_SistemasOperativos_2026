@@ -8,11 +8,11 @@ int main(int argc, char* argv[])
     int cpu_id;
     t_config_valores config_memoria;
 
-    logger = log_create("kernel_memory.log","Kernel Memory", 1, LOG_LEVEL_INFO); //log de kernel memory, variable global
-
     config=iniciar_config();
 
     cargar_informacion_configuracion(config, &config_memoria,logger);
+
+    logger = log_create("kernel_memory.log","Kernel Memory", 1, config_memoria.log_level); //log de kernel memory, variable global
 
     log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
 
@@ -27,36 +27,15 @@ int main(int argc, char* argv[])
 
     while(true){ //logica de esperar clientes
         int cliente_fd=esperar_cliente(logger, server_fd);
+
         if(cliente_fd!=-1){
+            pthread_t hilo;
 
-            t_modulo id_recibida; // recibo la identidad a comunicar
+            int* fd_ptr = malloc(sizeof(int));
+            *fd_ptr = cliente_fd;
 
-            int bytes=recv(cliente_fd,&id_recibida, sizeof(t_modulo),MSG_WAITALL);
-
-            if(bytes>0){ // significa que el/los modulos nos mando su id_identidad, si es igual a 0, se desconecto y si es menor, error
-                
-                int resultado_ok=0;
-                send(cliente_fd, &resultado_ok,sizeof(int),0);
-
-                switch(id_recibida){ //analizo que modulo se conecto a traves del switch
-                    case KERNEL_SCHEDULER:
-                         log_info(logger, "## Kernel Scheduler Conectado - FD del socket: %d", cliente_fd); //log obligatorio
-                    break;
-
-                    case CPU:
-                    recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL); //tomo el id del cpu
-                    log_info(logger, "## CPU %d Conectada", cpu_id); //log obligatorio
-                    break;
-                    
-                    case MEMORY_STICK:
-                    break;
-                } 
-            }else if(bytes==0){
-                    log_info(logger, "Se desconecto el cliente");
-                }else{
-                    log_error(logger, "Error");
-                }
-            close(cliente_fd);
+            pthread_create(&hilo, NULL, manejar_cliente, fd_ptr);
+            pthread_detach(hilo);
         }
     }
 
@@ -153,6 +132,55 @@ int esperar_cliente(t_log* logger, int socket_servidor)
     }
 	return socket_cliente;
 }
+
+void* manejar_cliente(void* arg) {
+
+    int cliente_fd = *(int*)arg;
+    free(arg);
+
+    t_modulo id_recibida;
+    int cpu_id;
+
+    int bytes = recv(cliente_fd, &id_recibida, sizeof(int), MSG_WAITALL);
+
+    if (bytes <= 0) {
+        log_error(logger, "Error en handshake");
+        close(cliente_fd);
+        return NULL;
+    }
+
+    int recibido = 0;
+    send(cliente_fd, &recibido, sizeof(int), 0);
+
+    switch(id_recibida){
+
+        case KERNEL_SCHEDULER:
+            log_info(logger, "## Kernel Scheduler Conectado - FD del socket: %d", cliente_fd);
+            break;
+
+        case CPU:
+            recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
+            log_info(logger, "## CPU %d Conectada", cpu_id);
+            break;
+
+        case MEMORY_STICK:
+            log_info(logger, "## Memory Stick Conectado");
+            break;
+
+        case SWAP:
+            log_info(logger, "## SWAP Conectado");
+            break;
+
+        default:
+            log_warning(logger, "Cliente desconocido");
+            close(cliente_fd);
+            return NULL;
+    }
+
+    close(cliente_fd);
+    return NULL;
+}
+
 void terminar_programa(int server_fd, t_log* logger, t_config* config)
 {
 	/* Y por ultimo, hay que liberar lo que utilizamos (conexion, log y config) 
