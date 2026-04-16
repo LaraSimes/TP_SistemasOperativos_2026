@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
    obtenerConfig();
 
 
-    socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
+   socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
    log_info(logger, "Conectado a Kernel Memory en el socket %d", socket_kernelMemory);
 
 

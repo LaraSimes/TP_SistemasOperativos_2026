@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
 
     config=iniciar_config();
 
-    cargar_informacion_configuracion(config, &config_memoria,logger);
+    cargar_informacion_configuracion(config, &config_memoria);
 
     logger = log_create("kernel_memory.log","Kernel Memory", 1, config_memoria.log_level); //log de kernel memory, variable global
 
@@ -55,7 +55,7 @@ t_config* iniciar_config(void) //funcion de iniciar config y se pasa el archivo 
 	return nuevo_config;
 }
 
-void cargar_informacion_configuracion(t_config*config, t_config_valores* valores, t_log* logger){
+void cargar_informacion_configuracion(t_config*config, t_config_valores* valores){
     valores->segment_max_size=config_get_int_value(config,"SEGMENT_MAX_SIZE");
     valores->instruction_delay=config_get_int_value(config,"INSTRUCTION_DELAY");
     valores->compaction_delay=config_get_int_value(config,"COMPACTION_DELAY");
@@ -64,12 +64,11 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->scripts_basepath=config_get_string_value(config,"SCRIPTS_BASEPATH");
     valores->puerto_escucha=config_get_string_value(config,"PUERTO_ESCUCHA");
 
-    log_info(logger, "Configuracion cargada de forma exitosa");
 }
 
 //paso b, fijarse
 
-int iniciar_servidor(t_log* logger,char*puerto)
+int iniciar_servidor(char*puerto)
 {
 	int err;
 	int socket_servidor;
@@ -85,14 +84,14 @@ int iniciar_servidor(t_log* logger,char*puerto)
 	
 	err= getaddrinfo(NULL, puerto, &hints, &servinfo);
     if(err!=0){
-        log_error(logger,"Error en Getaddrinfo");
+        printf("Error en Getaddrinfo");
         return -1;
     }
 
 	// Creamos el socket de escucha del servidor
 	socket_servidor = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol);
     if(socket_servidor==-1){
-        log_error(logger, "No se pudo crear el socket");
+        printf("No se pudo crear el socket");
         freeaddrinfo(servinfo);
         return -1;
     }
@@ -102,33 +101,33 @@ int iniciar_servidor(t_log* logger,char*puerto)
 	err = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
 	err = bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen);
     if(err==-1){
-        log_error(logger, "Error en el bind");
+        printf("Error en el bind");
         freeaddrinfo(servinfo);
         return -1;
     }
 	// Escuchamos las conexiones entrantes
 	err = listen(socket_servidor, SOMAXCONN);
     if(err==-1){
-        log_error(logger, "Error en el listen");
+        printf("Error en el listen");
         freeaddrinfo(servinfo);
         return -1;
     }
 
 	freeaddrinfo(servinfo);
-	log_info(logger, "Servidor de Memoria listo para escuchar en el puerto: %s", puerto);
+	printf("Servidor de Memoria listo para escuchar en el puerto: %s", puerto);
 
 	return socket_servidor;
 }
 
-int esperar_cliente(t_log* logger, int socket_servidor)
+int esperar_cliente(int socket_servidor)
 {
 	// Aceptamos un nuevo cliente
 	int socket_cliente = accept(socket_servidor,NULL,NULL);
     if(socket_cliente==-1){
-        log_error(logger, "Error al aceptar el cliente");
+        printf("Error al aceptar el cliente");
         return -1;
     } else{
-        log_info(logger, "Se conecto un cliente! FD: %d", socket_cliente);
+        printf("Se conecto un cliente! FD: %d", socket_cliente);
     }
 	return socket_cliente;
 }
@@ -164,7 +163,7 @@ void* manejar_cliente(void* arg) {
             break;
 
         case MEMORY_STICK:
-            log_info(logger, "## Memory Stick Conectado");
+            log_info(logger, "## Memory Stick Conectado"); //falta poner tamaño 
             break;
 
         case SWAP:
