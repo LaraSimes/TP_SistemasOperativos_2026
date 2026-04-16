@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }//Si falla conexion, destruye config y log y devuelve error
 
-    log_info(logger, "## Conectado a Kenrnel Scheduler");
+    log_info(logger, "## Conectado al Kernel Scheduler");
 
     t_modulo modulo_cpu = CPU;
     if (send(fd_ks, &modulo_cpu, sizeof(int),0) == -1){
@@ -62,11 +62,24 @@ int main(int argc, char* argv[]) {
         log_destroy(logger);
         return EXIT_FAILURE;
     }
-    log_info(logger,"Identificado con Kernel Scheduler");
+    log_info(logger,"Identificacion enviada a Kernel Scheduler");
+
+    int fd_ms = conectar_a_servidor(valores.ip_memory_stick, valores.puerto_memory_stick);
+
+    if (fd_ms == -1) {
+        log_error(logger, "No se pudo conectar a Memory Stick");
+        close(fd_km);
+        close(fd_ks);
+        config_destroy(config);
+        log_destroy(logger);
+        return EXIT_FAILURE;
+    }
+log_info(logger, "## Conectado a Memory Stick");
 
     log_info(logger, "CPU %d lista.Esperando PID del Kernel Scheduler",cpu_id);
     pause();
 
+    close(fd_ms);
     close(fd_km);
     close(fd_ks);
     config_destroy(config);

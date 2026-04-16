@@ -27,6 +27,8 @@ typedef struct {
     char* puerto_kernel_scheduler;
     char* ip_kernel_memory;
     char* puerto_kernel_memory;
+    char* ip_memory_stick;
+    char* puerto_memory_stick;
 } t_config_valores;
 
 
