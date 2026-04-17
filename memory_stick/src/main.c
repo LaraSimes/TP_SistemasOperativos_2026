@@ -1,4 +1,5 @@
 #include <memory_stick.h>
+#include <conexiones.h>
 
 
 t_log *logger;
@@ -21,8 +22,26 @@ int main(int argc, char* argv[]) {
 
 
    socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
-   log_info(logger, "Conectado a Kernel Memory en el socket %d", socket_kernelMemory);
 
+   if(socket_kernelMemory == -1){
+    log_error(logger, "No se pudo conectar a Kernel Memory");
+    return EXIT_FAILURE;
+   }
+
+   log_info(logger, "## Conectado a Kernel Memory");
+
+   t_modulo modulo = MOD_MEMORY_STICK;
+
+   send(socket_kernelMemory, &modulo, sizeof(int), 0);
+
+   int ok;
+   recv(socket_kernelMemory, &ok, sizeof(int), MSG_WAITALL);
+
+   if(ok != 0){
+    log_error(logger, "Error en handshake con Kernel Memory");
+    close(socket_kernelMemory);
+    return EXIT_FAILURE;
+   }
 
    socket_servidor = iniciar_servidor_lara(puerto_escucha);
    log_info(logger, "Memory Stick listo para recibir CPU");

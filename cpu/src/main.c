@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
 
     log_info(logger, "## Conectado al Kernel Scheduler");
 
-    t_modulo modulo_cpu = CPU;
+    t_modulo modulo_cpu = MOD_CPU;
     if (send(fd_ks, &modulo_cpu, sizeof(int),0) == -1){
         log_error(logger,"Error identificandose ante Kernel Scheduler");
         close(fd_km);

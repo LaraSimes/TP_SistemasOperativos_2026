@@ -12,13 +12,13 @@ int main(int argc, char* argv[])
 
     cargar_informacion_configuracion(config, &config_memoria);
 
-    logger = log_create("kernel_memory.log","Kernel Memory", 1, config_memoria.log_level); //log de kernel memory, variable global
+    t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
+
+    logger = log_create("kernel_memory.log","Kernel Memory", 1, nivel_log); //log de kernel memory, variable global
 
     log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
 
-    log_info(logger, "## Memory Stick de %d bytes Conectada", config_memoria.segment_max_size); //log obligatorio
-
-    int server_fd=iniciar_servidor(logger, config_memoria.puerto_escucha); // donde se inicia el servidor
+    int server_fd=iniciar_servidor(config_memoria.puerto_escucha); // donde se inicia el servidor
 
     if(server_fd==-1){
         log_error(logger, "Fallo al iniciar el servidor"); //analizamos si falla el sv
@@ -26,7 +26,7 @@ int main(int argc, char* argv[])
     }
 
     while(true){ //logica de esperar clientes
-        int cliente_fd=esperar_cliente(logger, server_fd);
+        int cliente_fd=esperar_cliente(server_fd);
 
         if(cliente_fd!=-1){
             pthread_t hilo;
@@ -114,7 +114,7 @@ int iniciar_servidor(char*puerto)
     }
 
 	freeaddrinfo(servinfo);
-	printf("Servidor de Memoria listo para escuchar en el puerto: %s", puerto);
+	printf("Servidor de Memoria listo para escuchar en el puerto: %s\n", puerto);
 
 	return socket_servidor;
 }
@@ -153,20 +153,20 @@ void* manejar_cliente(void* arg) {
 
     switch(id_recibida){
 
-        case KERNEL_SCHEDULER:
+        case MOD_KERNEL_SCHEDULER:
             log_info(logger, "## Kernel Scheduler Conectado - FD del socket: %d", cliente_fd);
             break;
 
-        case CPU:
+        case MOD_CPU:
             recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
             log_info(logger, "## CPU %d Conectada", cpu_id);
             break;
 
-        case MEMORY_STICK:
+        case MOD_MEMORY_STICK:
             log_info(logger, "## Memory Stick Conectado"); //falta poner tamaño 
             break;
 
-        case SWAP:
+        case MOD_SWAP:
             log_info(logger, "## SWAP Conectado");
             break;
 

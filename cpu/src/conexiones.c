@@ -56,7 +56,7 @@ int conectar_a_servidor(char* ip, char* puerto) {
 }
 
 int handshake_kernel_memory(int fd, int cpu_id, t_log* logger) {
-    t_modulo modulo = CPU; //le dice a Kernel memory que es la cpu
+    t_modulo modulo = MOD_CPU; //le dice a Kernel memory que es la cpu
     if (send(fd, &modulo, sizeof(t_modulo), 0) == -1) {
         log_error(logger, "Error enviando identificacion a KM");
         return -1;

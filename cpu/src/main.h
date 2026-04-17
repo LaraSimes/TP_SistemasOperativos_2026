@@ -15,9 +15,9 @@
 #include <netdb.h>
 
 typedef enum {
-    KERNEL_SCHEDULER,  // 0
-    CPU,               // 1
-    MEMORY_STICK       // 2
+    MOD_KERNEL_SCHEDULER,  // 0
+    MOD_CPU,               // 1
+    MOD_MEMORY_STICK       // 2
 } t_modulo; //POdria hacerlo en un conexiones.h
 
 
