@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
    logger = log_create("log.log", "MemoryStick", 1, LOG_LEVEL_INFO);
    obtenerConfig();
 
-//ser cliente de KM
+    //ser cliente de KM
    socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
 
    if(socket_kernelMemory == -1){
@@ -42,11 +42,11 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
    }
 
-//ser servidor de CPU
+    //ser servidor de CPU
 
-   socket_servidor = iniciar_servidor(puerto_escucha);
+   socket_servidor = iniciar_servidor_ms(puerto_escucha);
    log_info(logger, "Memory Stick listo para recibir CPU");
-   socket_cpu = esperar_cliente(socket_servidor);
+   socket_cpu = esperar_cliente_ms(socket_servidor);
 
 
  
@@ -80,7 +80,7 @@ void obtenerConfig(){
    puerto_kernelMemory = config_get_string_value(config, "PUERTO_KERNELMEMORY");
 }
 
-int iniciar_servidor(char*puerto)
+int iniciar_servidor_ms(char*puerto)
 {
 	int err;
 	int socket_servidor;
@@ -131,7 +131,7 @@ int iniciar_servidor(char*puerto)
 	return socket_servidor;
 }
 
-int esperar_cliente(int socket_servidor)
+int esperar_cliente_ms(int socket_servidor)
 {
 	// Aceptamos un nuevo cliente
 	int socket_cliente = accept(socket_servidor,NULL,NULL);
