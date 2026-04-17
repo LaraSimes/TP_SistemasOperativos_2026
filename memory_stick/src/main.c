@@ -11,19 +11,27 @@ t_config* config;
 char* ip_kernelMemory;
 char* puerto_kernelMemory;
 int socket_kernelMemory;
+int tamanio_memoryStick;
 
 
 
 
 int main(int argc, char* argv[]) {
+
+    if(argc <2){
+        printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
+        return EXIT_FAILURE;
+    }
+
    logger = log_create("log.log", "MemoryStick", 1, LOG_LEVEL_INFO);
-   obtenerConfig();
+   obtenerConfig(argv[1]);
 
     //ser cliente de KM
    socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
 
    if(socket_kernelMemory == -1){
     log_error(logger, "No se pudo conectar a Kernel Memory");
+    log_destroy(logger); 
     return EXIT_FAILURE;
    }
 
@@ -32,6 +40,8 @@ int main(int argc, char* argv[]) {
    t_modulo modulo = MOD_MEMORY_STICK;
 
    send(socket_kernelMemory, &modulo, sizeof(int), 0);
+
+   send(socket_kernelMemory, &tamanio_memoryStick, sizeof(int), 0);
 
    int ok;
    recv(socket_kernelMemory, &ok, sizeof(int), MSG_WAITALL);
@@ -65,8 +75,8 @@ int main(int argc, char* argv[]) {
 }
 
 
-void obtenerConfig(){
-   config = config_create("memory_stick.config");
+void obtenerConfig(char* ruta){
+   config = config_create(ruta);
 
 
    if (config == NULL) {
@@ -80,9 +90,9 @@ void obtenerConfig(){
 
    puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
 
-
    ip_kernelMemory = config_get_string_value(config, "IP_KERNELMEMORY");
    puerto_kernelMemory = config_get_string_value(config, "PUERTO_KERNELMEMORY");
+   tamanio_memoryStick = config_get_int_value(config, "TAMANIO_MEMORY_STICK");
 }
 
 int iniciar_servidor_ms(char*puerto)

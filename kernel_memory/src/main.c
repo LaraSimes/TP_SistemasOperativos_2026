@@ -5,10 +5,14 @@
 
 int main(int argc, char* argv[]) 
 {
-    int cpu_id;
+    if(argc <2){
+        printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
+        return EXIT_FAILURE;
+    }
+
     t_config_valores config_memoria;
 
-    config=iniciar_config();
+    config=iniciar_config(argv[1]);
 
     cargar_informacion_configuracion(config, &config_memoria);
 
@@ -44,11 +48,11 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-t_config* iniciar_config(void) //funcion de iniciar config y se pasa el archivo donde estan los datos
+t_config* iniciar_config(char *ruta) //funcion de iniciar config y se pasa el archivo donde estan los datos
 {
-	t_config* nuevo_config=config_create("kernel_memory.config");
+	t_config* nuevo_config=config_create(ruta);
 	if(nuevo_config==NULL){
-	printf("No se pudo encontrar el archivo de kernel_memory.config");
+	printf("No se pudo encontrar el archivo de configuracion en: %s\n", ruta);
 	return NULL;
 	}
 
@@ -163,7 +167,9 @@ void* manejar_cliente(void* arg) {
             break;
 
         case MOD_MEMORY_STICK:
-            log_info(logger, "## Memory Stick Conectado"); //falta poner tamaño 
+            int tamanio_ms_recibido;
+            recv(cliente_fd, &tamanio_ms_recibido, sizeof(int), MSG_WAITALL);
+            log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido); //falta poner tamaño 
             break;
 
         case MOD_SWAP:

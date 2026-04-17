@@ -25,7 +25,7 @@ typedef struct{
 } t_config_valores;
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores);
-t_config* iniciar_config(void);
+t_config* iniciar_config(char* ruta);
 t_log* iniciar_logger(void);
 
 int iniciar_servidor(char*puerto);

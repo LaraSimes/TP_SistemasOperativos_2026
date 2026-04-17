@@ -77,10 +77,14 @@ int main(int argc, char* argv[]) {
     log_info(logger, "## Conectado a Memory Stick");
 
     if(send(fd_ms, &modulo_cpu, sizeof(int), 0) == -1){
-        log_error(logger, "Error enviado cpu_id a Memory Stick");
-        return EXIT_FAILURE;
-    }
+    log_error(logger, "Error enviando modulo a Memory Stick");
+    return EXIT_FAILURE;
+}
 
+if(send(fd_ms, &cpu_id, sizeof(int), 0) == -1){
+    log_error(logger, "Error enviando cpu_id a Memory Stick");
+    return EXIT_FAILURE;
+}
     int ok;
     if(recv(fd_ms, &ok, sizeof(int), MSG_WAITALL) <= 0 ){
         log_error(logger, "Error recibiendo OK de Memory Stick");
