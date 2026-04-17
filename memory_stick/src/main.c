@@ -5,7 +5,7 @@ t_log *logger;
 int socket_servidor;
 char* puerto_escucha; //hacer que iniciar servidor reciba como parametro el puerto de escucha
 t_config* config;
-int socket_cpu;
+
 
 
 char* ip_kernelMemory;
@@ -46,10 +46,15 @@ int main(int argc, char* argv[]) {
 
    socket_servidor = iniciar_servidor_ms(puerto_escucha);
    log_info(logger, "Memory Stick listo para recibir CPU");
-   socket_cpu = esperar_cliente_ms(socket_servidor);
 
+   while(1){
+    int cliente_fd = esperar_cliente_ms(socket_servidor);
 
- 
+    if(cliente_fd != -1){
+        manejar_cpu(cliente_fd);
+    }
+}
+
 
 
    log_destroy(logger);
@@ -142,4 +147,27 @@ int esperar_cliente_ms(int socket_servidor)
         printf("Se conecto un cliente! FD: %d", socket_cliente);
     }
 	return socket_cliente;
+}
+
+void manejar_cpu(int cliente_fd) {
+
+    t_modulo modulo;
+    int cpu_id;
+
+    recv(cliente_fd, &modulo, sizeof(int), MSG_WAITALL);
+
+    if(modulo != MOD_CPU){
+        log_warning(logger, "Cliente no es CPU");
+        close(cliente_fd);
+        return;
+    }
+
+    recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
+
+    log_info(logger, "## CPU %d Conectada", cpu_id);
+
+    int ok = 0;
+    send(cliente_fd, &ok, sizeof(int), 0);
+
+    close(cliente_fd);
 }

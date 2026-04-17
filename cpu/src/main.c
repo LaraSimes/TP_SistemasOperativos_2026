@@ -74,7 +74,19 @@ int main(int argc, char* argv[]) {
         log_destroy(logger);
         return EXIT_FAILURE;
     }
-log_info(logger, "## Conectado a Memory Stick");
+    log_info(logger, "## Conectado a Memory Stick");
+
+    if(send(fd_ms, &modulo_cpu, sizeof(int), 0) == -1){
+        log_error(logger, "Error enviado cpu_id a Memory Stick");
+        return EXIT_FAILURE;
+    }
+
+    int ok;
+    if(recv(fd_ms, &ok, sizeof(int), MSG_WAITALL) <= 0 ){
+        log_error(logger, "Error recibiendo OK de Memory Stick");
+        return EXIT_FAILURE;
+    }
+    log_info(logger, "Handshake con Memory Stick OK");
 
     log_info(logger, "CPU %d lista.Esperando PID del Kernel Scheduler",cpu_id);
     pause();
