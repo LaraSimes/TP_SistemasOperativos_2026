@@ -8,7 +8,6 @@ int crear_cliente(char *ip, char* puerto){
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
 
 	err= getaddrinfo(ip, puerto, &hints, &server_info);
 
@@ -36,11 +35,8 @@ int liberar(t_log *log, t_config *config, int conexion){
 void handshakear (int socket_cliente, t_log *log){
 	op_code modulo = IO;
 	int mensaje;
-	if (send(socket_cliente,modulo,sizeof(op_code),0)==-1){
+	if (send(socket_cliente,&modulo,sizeof(op_code),0)==-1){
 		log_debug(log,"Problema enviando handshake");
-	}
-	if (recv(socket_cliente,mensaje,sizeof(int),0)!=0){
-		log_debug(log,"Problema recibiendo handshake");
 	}
 	else{
 		log_info(log,"Conectado a Kernel Scheduler");

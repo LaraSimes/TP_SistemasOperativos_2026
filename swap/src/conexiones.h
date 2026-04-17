@@ -8,11 +8,12 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 typedef enum{
-    KERNEL_SCHEDULER = 1, 
-    CPU = 2,            
-    MEMORY_STICK = 3,      
-    SWAP = 4
+    MOD_KERNEL_SCHEDULER,    //0
+    MOD_CPU,                //1
+    MOD_MEMORY_STICK,      //2
+    MOD_SWAP              //3
 } t_modulo;
 
 int crear_cliente(char *ip, char* puerto);

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <arpa/inet.h>
 typedef enum {
     CPU = 1,
     IO = 2

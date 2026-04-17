@@ -8,14 +8,18 @@ int crear_cliente(char *ip, char* puerto){
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_flags = AI_PASSIVE;
 
 	err= getaddrinfo(ip, puerto, &hints, &server_info);
-
+	if (err!=0){
+        return -1;
+	}
 	int socket_cliente = socket(server_info-> ai_family,server_info->ai_socktype, server_info->ai_protocol);
-
+	if (socket_cliente == -1){
+        freeaddrinfo(server_info);
+        return -1;
+    }
 	err = connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen);
-    if (err==-1){
+    if (err!=0){
         close(socket_cliente);
         socket_cliente=-1;
     }
@@ -34,12 +38,12 @@ int liberar(t_log *log, t_config *config, int conexion){
     return 0;
 }
 void handshakear (int socket_cliente, t_log *log){
-	t_modulo modulo = SWAP;
+	t_modulo modulo = MOD_SWAP;
 	int mensaje;
-	if (send(socket_cliente,modulo,sizeof(t_modulo),0)==-1){
+	if (send(socket_cliente,&modulo,sizeof(t_modulo),0)==-1){
 		log_debug(log,"Problema enviando handshake");
 	}
-	if (recv(socket_cliente,mensaje,sizeof(int),0)!=0){
+	if (recv(socket_cliente,&mensaje,sizeof(int),0)<=0){
 		log_debug(log,"Problema recibiendo handshake");
 	}
 	else{
