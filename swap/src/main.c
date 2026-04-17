@@ -1,21 +1,19 @@
-#include <utils/hello.h>
+#include "conexiones.h"
 
 int main(int argc, char* argv[]) {
-    t_log *logger=log_create("log_SWAP.log", "SWAP",1, LOG_LEVEL_INFO);
-    t_config *config = config_create("config_SWAP.config");
+    t_log *logger;
+    t_config *config;
+
+    logger= log_create("log_SWAP.log", "SWAP",1, LOG_LEVEL_INFO);
+    config=config_create("config_SWAP.config");
     if (config == NULL ){
 	    log_debug(logger,"No se pudo crear el config");
 		abort();
 	};
     char *ip = config_get_string_value(config,"IP");
 	char *puerto= config_get_string_value(config,"PUERTO");
-	char *valor = config_get_string_value(config,"CLAVE");
     int sckt_Kmemory= crear_cliente(ip,puerto);
-    if (sckt_Kmemory==-1){
-        log_debug(logger,"No se pudo conectar el socket");
-    }
-    else{
-        log_info(logger,"Conectado a Kernel Memory");
-    }
+    handshakear(sckt_Kmemory,logger);
     liberar(logger,config,sckt_Kmemory);
 }
+

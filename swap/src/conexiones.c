@@ -1,10 +1,10 @@
-#include<utils/hello.h>
+#include "conexiones.h"
+
 
 int crear_cliente(char *ip, char* puerto){
 	struct addrinfo hints;
 	struct addrinfo *server_info;
 	int err;
-
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_STREAM;
@@ -23,6 +23,7 @@ int crear_cliente(char *ip, char* puerto){
 
 	return socket_cliente;
 }
+
 int liberar(t_log *log, t_config *config, int conexion){
     log_destroy(log);
     config_destroy(config);
@@ -31,4 +32,17 @@ int liberar(t_log *log, t_config *config, int conexion){
     }
     close(conexion);
     return 0;
+}
+void handshakear (int socket_cliente, t_log *log){
+	t_modulo modulo = SWAP;
+	int mensaje;
+	if (send(socket_cliente,modulo,sizeof(t_modulo),0)==-1){
+		log_debug(log,"Problema enviando handshake");
+	}
+	if (recv(socket_cliente,mensaje,sizeof(int),0)!=0){
+		log_debug(log,"Problema recibiendo handshake");
+	}
+	else{
+		log_info(log,"Conectado a Kernel Memory");
+	}
 }
