@@ -62,6 +62,10 @@ int main(int argc, char* argv[]) {
         log_destroy(logger);
         return EXIT_FAILURE;
     }
+    if (send(fd_ks, &cpu_id, sizeof(int), 0) == -1) {
+        log_error(logger, "Error enviando cpu_id a KM");
+        return -1;
+    }
     log_info(logger,"Identificacion enviada a Kernel Scheduler");
 
     int fd_ms = conectar_a_servidor(valores.ip_memory_stick, valores.puerto_memory_stick);

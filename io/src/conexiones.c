@@ -39,6 +39,6 @@ void handshakear (int socket_cliente, t_log *log){
 		log_debug(log,"Problema enviando handshake");
 	}
 	else{
-		log_info(log,"Conectado a Kernel Scheduler");
+		log_info(log,"## Conectado a Kernel Scheduler");
 	}
 }

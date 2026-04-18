@@ -26,12 +26,13 @@ void atender_clientes(int server_fd){
 
 void* atender_cliente(void* arg) {
     int cliente_fd = (int) arg;
-
+    int cpu_id;
     int tipo = recibir_operacion(cliente_fd);
 
     switch (tipo) {
         case CPU:
-            log_info(logger, "Se conectó una CPU");
+            recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
+            log_info(logger, "## CPU %d Conectada",cpu_id);
             break;
 
         case IO:

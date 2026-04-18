@@ -1,5 +1,5 @@
 #include "conexiones.h"
-#include <commons/log.h>
+
 /*
 conexiones.c
     Crear conexión a Kernel Memory // HECHO en utils
@@ -18,7 +18,7 @@ void handshakear (int socket_cliente, t_log *log){
 		log_debug(log,"Problema recibiendo handshake");
 	}
 	else{
-		log_info(log,"Conectado a Kernel Memory");
+		log_info(log,"## Conectado a Kernel Memory");
 	}
 }
 
