@@ -41,12 +41,12 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
     log_info(logger, "log level: %s", log_level_str); 
 
 
-    // conexion = crear_conexion(ip_memoria, puerto_memoria);
-    // if (conexion == -1) {
-    //     log_error(logger, "No se pudo conectar a memoria");
-    //     return EXIT_FAILURE;
-    // }
-    // log_info(logger, "Conectado a memoria");
+    conexion = crear_conexion(ip_memoria, puerto_memoria);
+    if (conexion == -1) {
+        log_error(logger, "No se pudo conectar a memoria");
+        return EXIT_FAILURE;
+    }
+    handshakear(conexion,logger);
 
 
     server_fd = iniciar_servidor(puerto_escucha);
