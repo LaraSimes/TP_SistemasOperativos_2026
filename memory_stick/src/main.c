@@ -34,23 +34,11 @@ int main(int argc, char* argv[]) {
     log_destroy(logger); 
     return EXIT_FAILURE;
    }
+   handshakear(socket_kernelMemory,logger,MOD_KERNEL_MEMORY);
 
-   log_info(logger, "## Conectado a Kernel Memory");
-
-   t_modulo modulo = MOD_MEMORY_STICK;
-
-   send(socket_kernelMemory, &modulo, sizeof(int), 0);
 
    send(socket_kernelMemory, &tamanio_memoryStick, sizeof(int), 0);
 
-   int ok;
-   recv(socket_kernelMemory, &ok, sizeof(int), MSG_WAITALL);
-
-   if(ok != 0){
-    log_error(logger, "Error en handshake con Kernel Memory");
-    close(socket_kernelMemory);
-    return EXIT_FAILURE;
-   }
 
     //ser servidor de CPU
 

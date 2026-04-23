@@ -29,6 +29,5 @@ typedef struct {
 } t_config_valores;
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger); //Recibe la config, lo mete en el struct y lo loguea 
-int handshake_kernel_memory(int fd, int cpu_id, t_log* logger);
 
 #endif

@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 
     // Conexion a KM
 
-    int fd_km = conectar_a_servidor(valores.ip_kernel_memory, valores.puerto_kernel_memory);
+    int fd_km = crear_cliente(valores.ip_kernel_memory, valores.puerto_kernel_memory);
 
     if (fd_km == -1)
     {
@@ -33,16 +33,13 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
 
-    log_info(logger, "## Conectado a Kernel Memory");
+    handshakear(fd_km,logger,MOD_KERNEL_MEMORY);
 
-    if (handshake_kernel_memory(fd_km, cpu_id, logger) == -1)
+     if (send(fd_km, &cpu_id, sizeof(int), 0) == -1)
     {
-        log_error(logger, "Handshake con Kernel memory fallo");
-        close(fd_km);
-        config_destroy(config);
-        log_destroy(logger);
+        log_error(logger, "Error enviando cpu_id a Memory Stick");
         return EXIT_FAILURE;
-    } // Si falla hanshake, cierra el fd, destruye config y log y devuelve error
+    }
 
     // Conexion a KS
     int fd_ks = crear_cliente(valores.ip_kernel_scheduler, valores.puerto_kernel_scheduler);
@@ -55,19 +52,7 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
-
-    log_info(logger, "## Conectado al Kernel Scheduler");
-
-    t_modulo modulo_cpu = MOD_CPU;
-    if (send(fd_ks, &modulo_cpu, sizeof(int), 0) == -1)
-    {
-        log_error(logger, "Error identificandose ante Kernel Scheduler");
-        close(fd_km);
-        close(fd_ks);
-        config_destroy(config);
-        log_destroy(logger);
-        return EXIT_FAILURE;
-    }
+    handshakear(fd_ks,logger,MOD_KERNEL_SCHEDULER);
     if (send(fd_ks, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a KM");
@@ -75,7 +60,7 @@ int main(int argc, char *argv[])
     }
     log_info(logger, "Identificacion enviada a Kernel Scheduler");
 
-    int fd_ms = conectar_a_servidor(valores.ip_memory_stick, valores.puerto_memory_stick);
+    int fd_ms = crear_cliente(valores.ip_memory_stick, valores.puerto_memory_stick);
 
     if (fd_ms == -1)
     {
@@ -86,26 +71,13 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     }
-    log_info(logger, "## Conectado a Memory Stick");
-
-    if (send(fd_ms, &modulo_cpu, sizeof(int), 0) == -1)
-    {
-        log_error(logger, "Error enviando modulo a Memory Stick");
-        return EXIT_FAILURE;
-    }
-
+    handshakear(fd_ms,logger,MOD_MEMORY_STICK);
     if (send(fd_ms, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a Memory Stick");
         return EXIT_FAILURE;
     }
-    int ok;
-    if (recv(fd_ms, &ok, sizeof(int), MSG_WAITALL) <= 0)
-    {
-        log_error(logger, "Error recibiendo OK de Memory Stick");
-        return EXIT_FAILURE;
-    }
-    log_info(logger, "Handshake con Memory Stick OK");
+  
 
     log_info(logger, "CPU %d lista.Esperando PID del Kernel Scheduler", cpu_id);
     pause();

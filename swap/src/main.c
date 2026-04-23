@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         liberar(logger,config,sckt_Kmemory);
         return -1;
     }
-    handshakear(sckt_Kmemory,logger);
+    handshakear(sckt_Kmemory,logger,MOD_KERNEL_MEMORY);
     liberar(logger,config,sckt_Kmemory);
     return 0;
 }

@@ -9,7 +9,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-void handshakear (int socket_cliente, t_log *log);
 
 #endif 
 

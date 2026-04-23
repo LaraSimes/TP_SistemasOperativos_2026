@@ -21,3 +21,26 @@ int crear_cliente(char *ip, char* puerto){
 
 	return socket_cliente;
 }
+
+
+void handshakear (int socket_cliente, t_log *log, t_modulo id){
+	t_modulo modulo = id;
+	int mensaje;
+	if (send(socket_cliente,&modulo,sizeof(t_modulo),0)==-1){
+		log_debug(log,"Problema enviando handshake");
+	}
+	if (recv(socket_cliente,&mensaje,sizeof(int),0)<=0){
+		log_debug(log,"Problema recibiendo handshake");
+	}
+	else{
+		switch (id)
+		{
+		case 0:
+		log_info(log,"## Conectado a Kernel Scheduler");
+		case 2:
+		log_info(log,"## Conectado a Memory Stick");
+		case 5:
+		log_info(log,"## Conectado a Kernel Memory");
+		};
+	}
+}

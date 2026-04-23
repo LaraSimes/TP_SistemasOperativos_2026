@@ -18,7 +18,7 @@ int main(int argc, char* argv[]) {
         liberar(logger,config,sckt_scheduler);
         return -1;
     }
-    handshakear(sckt_scheduler,logger);
+    handshakear(sckt_scheduler,logger,MOD_KERNEL_SCHEDULER);
     liberar(logger,config,sckt_scheduler);
     return 0;
 }

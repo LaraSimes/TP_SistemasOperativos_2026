@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
         log_error(logger, "No se pudo conectar a memoria");
         return EXIT_FAILURE;
     }
-    handshakear(conexion,logger);
+    handshakear(conexion,logger,MOD_KERNEL_MEMORY);
 
 
     server_fd = iniciar_servidor(puerto_escucha);
