@@ -29,5 +29,5 @@ typedef enum {
 	LOG_LEVEL_ERROR //!< Loguea solo mensajes de log_error
 } t_log_level;
 
-t_log* iniciar_logger(t_modulo identificador, t_log_level nivel);
+t_log * iniciar_logger(t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);

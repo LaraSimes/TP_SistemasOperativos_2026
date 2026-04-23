@@ -76,23 +76,20 @@ int main(int argc, char* argv[]) {
 
 
 void obtenerConfig(char* ruta){
-   config = config_create(ruta);
-
-
-   if (config == NULL) {
+    t_config* config = iniciar_config(ruta);
+    if (config == NULL) {
        // Usamos printf porque si el logger falla también, no verías nada
        printf("ERROR: No se pudo encontrar el archivo memory_stick.config en la ruta actual.\n");
        printf("Ruta actual de ejecución: ");
        system("pwd"); // Esto te dirá dónde está parado el programa realmente
        exit(EXIT_FAILURE);
-   }
+    }
 
+    puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
 
-   puerto_escucha = config_get_string_value(config, "PUERTO_ESCUCHA");
-
-   ip_kernelMemory = config_get_string_value(config, "IP_KERNELMEMORY");
-   puerto_kernelMemory = config_get_string_value(config, "PUERTO_KERNELMEMORY");
-   tamanio_memoryStick = config_get_int_value(config, "TAMANIO_MEMORY_STICK");
+    ip_kernelMemory = config_get_string_value(config, "IP_KERNELMEMORY");
+    puerto_kernelMemory = config_get_string_value(config, "PUERTO_KERNELMEMORY");
+    tamanio_memoryStick = config_get_int_value(config, "TAMANIO_MEMORY_STICK");
 }
 
 int iniciar_servidor_ms(char*puerto)

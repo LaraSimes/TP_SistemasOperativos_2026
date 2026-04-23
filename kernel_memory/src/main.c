@@ -1,9 +1,9 @@
 #include "main.h"
+    t_log* logger;
+    t_config* config;
 
 int main(int argc, char* argv[]) 
 {
-    t_log* logger;
-    t_config* config;
     if(argc <2){
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
@@ -47,16 +47,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-t_config* iniciar_config(char *ruta) //funcion de iniciar config y se pasa el archivo donde estan los datos
-{
-	t_config* nuevo_config=config_create(ruta);
-	if(nuevo_config==NULL){
-	printf("No se pudo encontrar el archivo de configuracion en: %s\n", ruta);
-	return NULL;
-	}
-
-	return nuevo_config;
-}
 
 void cargar_informacion_configuracion(t_config*config, t_config_valores* valores){
     valores->segment_max_size=config_get_int_value(config,"SEGMENT_MAX_SIZE");

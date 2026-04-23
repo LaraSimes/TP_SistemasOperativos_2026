@@ -34,3 +34,11 @@ t_log *iniciar_logger(t_modulo id, t_log_level nivel){
         abort();
     }
 }
+t_config* iniciar_config(char* path){
+    t_config* config = config_create(path);
+    if(!config){ //Se fija si se creo la config, o si dio null
+        fprintf(stderr, "Error al leer config: %s\n",path);
+        exit(EXIT_FAILURE);
+    }
+    return config;
+}

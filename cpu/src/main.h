@@ -32,8 +32,6 @@ typedef struct {
     char* puerto_memory_stick;
 } t_config_valores;
 
-
-t_config* iniciar_config(char* path); // Abre el archivo de config
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger); //Recibe la config, lo mete en el struct y lo loguea 
 int conectar_a_servidor(char* ip, char* puerto); // devuelve el fd del socket
 int handshake_kernel_memory(int fd, int cpu_id, t_log* logger);

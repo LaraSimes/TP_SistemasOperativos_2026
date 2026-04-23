@@ -1,13 +1,5 @@
 #include "main.h"
 
-t_config* iniciar_config(char* path){
-    t_config* config = config_create(path);
-    if(!config){ //Se fija si se creo la config, o si dio null
-        fprintf(stderr, "Error al leer config: %s\n",path);
-        exit(EXIT_FAILURE);
-    }
-return config;
-}
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger) {
     valores->log_level               = config_get_string_value(config, "LOG_LEVEL");
