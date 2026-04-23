@@ -12,8 +12,8 @@
 #include "conexiones.h"
 #include "server.h"
 #include "utils/hello.h"
+#include "utils/general.h"
 
-t_log* iniciar_logger(t_log_level nivel);
 void obtener_configuracion();
 
 

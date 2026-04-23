@@ -1,3 +1,4 @@
+#include "utils/general.h"
 #include <commons/log.h>
 #include <commons/config.h>
 

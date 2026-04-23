@@ -1,11 +1,5 @@
 #include "main.h"
 
-t_log* iniciar_logger(char* identificador){
-    char nombre_log[64];
-    snprintf(nombre_log, sizeof(nombre_log),"cpu-%s.log",identificador); //arma string del log segun id que pasan x parametro
-    return log_create(nombre_log, "cpu", true, LOG_LEVEL_INFO);
-}
-
 t_config* iniciar_config(char* path){
     t_config* config = config_create(path);
     if(!config){ //Se fija si se creo la config, o si dio null

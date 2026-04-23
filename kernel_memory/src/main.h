@@ -13,6 +13,7 @@
 #include <string.h>
 #include <pthread.h> 
 #include "conexiones.h"
+#include "utils/general.h"
 
 typedef struct{
     char* log_level;
@@ -25,8 +26,6 @@ typedef struct{
 } t_config_valores;
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores);
-t_config* iniciar_config(char* ruta);
-t_log* iniciar_logger(void);
 
 int iniciar_servidor(char*puerto);
 int esperar_cliente (int socket_servidor);

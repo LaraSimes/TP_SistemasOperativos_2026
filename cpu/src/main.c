@@ -2,6 +2,7 @@
 #include "main.h"
 
 int main(int argc, char* argv[]) {
+    t_log* logger;
     if (argc < 3)
     {
         fprintf(stderr,"Uso: %s <config> <identificador>\n",argv[0]);
@@ -11,7 +12,7 @@ int main(int argc, char* argv[]) {
     char* identificador = argv[2];
     int cpu_id =atoi(identificador); // Convierte el string "0" en int 0, ya que el handshake envia el id como binario
     
-    t_log* logger = iniciar_logger(identificador);
+    logger=iniciar_logger(MOD_IO, LOG_LEVEL_INFO);
     t_config* config = iniciar_config(config_path);
 
     t_config_valores valores; //Declara struct en el stack

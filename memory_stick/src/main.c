@@ -23,7 +23,7 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-   logger = log_create("log.log", "MemoryStick", 1, LOG_LEVEL_INFO);
+   logger = iniciar_logger(MOD_MEMORY_STICK, LOG_LEVEL_INFO);
    obtenerConfig(argv[1]);
 
     //ser cliente de KM

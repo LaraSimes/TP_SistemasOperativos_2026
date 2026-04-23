@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
     config = iniciar_config(config_path);
     obtener_configuracion(config);
    
-    logger = iniciar_logger(log_level);
+    logger = iniciar_logger(MOD_KERNEL_SCHEDULER, LOG_LEVEL_INFO);
 
     log_info(logger, "IP Memoria: %s", ip_memoria); 
     log_info(logger, "Puerto Memoria: %s", puerto_memoria); 
@@ -60,15 +60,6 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
     return 0;
 }
 
-t_log *iniciar_logger(t_log_level nivel)
-{
-	t_log* nuevo_logger = log_create("kernel_scheduler.log","KERNEL_SCHEDULER",true, nivel);
-	if(nuevo_logger != NULL){
-        return nuevo_logger;
-    }else{
-        abort();
-    }
-}
 
 void obtener_configuracion(t_config* config){
     log_level_str = obtener_string("LOG_LEVEL", config); 

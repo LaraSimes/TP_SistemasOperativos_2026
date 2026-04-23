@@ -6,6 +6,7 @@ void saludar(char* quien) {
 }
 
 
+
 int iniciar_servidor(char* puerto) {
     int socket_servidor;
     struct addrinfo hints, *servinfo;

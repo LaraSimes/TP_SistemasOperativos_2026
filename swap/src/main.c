@@ -4,7 +4,7 @@ int main(int argc, char* argv[]) {
     t_log *logger;
     t_config *config;
     
-    logger= log_create("SWAP.log", "SWAP",1, LOG_LEVEL_INFO);
+    logger = iniciar_logger(MOD_SWAP,LOG_LEVEL_INFO);
     config = config_create(argv[1]);
     if (config == NULL ){
 	    log_debug(logger,"No se pudo crear el config");

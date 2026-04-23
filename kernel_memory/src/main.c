@@ -1,10 +1,9 @@
 #include "main.h"
 
-    t_log* logger;
-    t_config* config;
-
 int main(int argc, char* argv[]) 
 {
+    t_log* logger;
+    t_config* config;
     if(argc <2){
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
@@ -18,7 +17,7 @@ int main(int argc, char* argv[])
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 
-    logger = log_create("kernel_memory.log","Kernel Memory", 1, nivel_log); //log de kernel memory, variable global
+    logger=iniciar_logger(MOD_KERNEL_MEMORY,nivel_log);
 
     log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
 

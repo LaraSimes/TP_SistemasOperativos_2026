@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
-
+#include "utils/general.h"
 
 #include "conexiones.h"
 

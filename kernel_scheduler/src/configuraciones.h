@@ -8,7 +8,6 @@
 #include<commons/config.h>
 #include<readline/readline.h>
 
-t_config* iniciar_config(char* path);
 char* obtener_string(char* valor, t_config* config);
 int obtener_int(char* valor, t_config* config);
 
