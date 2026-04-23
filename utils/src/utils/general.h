@@ -1,3 +1,6 @@
+#ifndef GENERAL_H
+#define GENERAL_H
+
 #include <commons/log.h> //Biblioteca de la catedra
 #include <commons/config.h>
 
@@ -23,3 +26,5 @@ typedef enum{
 
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);
+
+#endif

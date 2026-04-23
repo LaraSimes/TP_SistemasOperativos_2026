@@ -14,9 +14,5 @@ void atender_clientes(int server_fd);
 void* atender_cliente(void* arg);
 int recibir_operacion(int socket_cliente);
 
-typedef enum {
-    CPU = 1,
-    IO = 2
-} op_code;
 
 #endif /* SERVER_H_ */

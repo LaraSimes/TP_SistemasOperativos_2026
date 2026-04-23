@@ -11,9 +11,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-typedef enum {
-    CPU = 1,
-    IO = 2
-} op_code;
+
 
 int liberar(t_log *log, t_config *config, int conexion);
