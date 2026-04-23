@@ -15,11 +15,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-typedef enum {
-    MOD_KERNEL_SCHEDULER,  // 0
-    MOD_CPU,               // 1
-    MOD_MEMORY_STICK       // 2
-} t_modulo; //POdria hacerlo en un conexiones.h
 
 
 typedef struct {
