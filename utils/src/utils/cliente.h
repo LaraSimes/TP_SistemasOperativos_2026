@@ -1,5 +1,4 @@
-#ifndef CPU_MAIN_H_
-#define CPU_MAIN_H_
+
 
 #include <commons/log.h> //Biblioteca de la catedra
 #include <commons/config.h>
