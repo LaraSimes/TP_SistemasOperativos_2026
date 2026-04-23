@@ -9,8 +9,6 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 
-
-int crear_conexion(char *ip, char* puerto);
 void handshakear (int socket_cliente, t_log *log);
 
 #endif 

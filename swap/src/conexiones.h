@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include "utils/cliente.h"
 
-int crear_cliente(char *ip, char* puerto);
 int liberar(t_log *log, t_config *config, int conexion);
 void handshakear (int socket_cliente, t_log *log);

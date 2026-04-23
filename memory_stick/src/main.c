@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
    obtenerConfig(argv[1]);
 
     //ser cliente de KM
-   socket_kernelMemory= crear_conexion(ip_kernelMemory, puerto_kernelMemory);
+   socket_kernelMemory= crear_cliente(ip_kernelMemory, puerto_kernelMemory);
 
    if(socket_kernelMemory == -1){
     log_error(logger, "No se pudo conectar a Kernel Memory");

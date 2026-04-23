@@ -1,4 +1,5 @@
 #include "utils/general.h"
+#include "utils/cliente.h"
 #include <commons/log.h>
 #include <commons/config.h>
 
@@ -15,6 +16,5 @@ typedef enum {
     IO = 2
 } op_code;
 
-int crear_cliente(char *ip, char* puerto);
 int liberar(t_log *log, t_config *config, int conexion);
 void handshakear (int socket_cliente, t_log *log);

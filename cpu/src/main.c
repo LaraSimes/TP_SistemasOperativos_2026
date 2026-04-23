@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     } // Si falla hanshake, cierra el fd, destruye config y log y devuelve error
 
     // Conexion a KS
-    int fd_ks = conectar_a_servidor(valores.ip_kernel_scheduler, valores.puerto_kernel_scheduler);
+    int fd_ks = crear_cliente(valores.ip_kernel_scheduler, valores.puerto_kernel_scheduler);
 
     if (fd_ks == -1)
     {

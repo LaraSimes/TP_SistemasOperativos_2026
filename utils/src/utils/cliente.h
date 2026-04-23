@@ -13,3 +13,5 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+
+int crear_cliente(char *ip, char* puerto);

@@ -15,31 +15,6 @@ log_info(logger, "Config cargada - KS: %s:%s | KM: %s:%s",
     valores->ip_kernel_memory,    valores->puerto_kernel_memory); // informa que la config se leyo bien
 }
 
-int conectar_a_servidor(char* ip, char* puerto) {
-    struct addrinfo hints; //le digo a getaddrinfo que tipo de conexion quiero
-    struct addrinfo* result;
-
-    memset(&hints, 0, sizeof(hints)); //inicializo en 0 el socket
-    hints.ai_family   = AF_UNSPEC;
-    hints.ai_socktype = SOCK_STREAM;
-
-    if (getaddrinfo(ip, puerto, &hints, &result) != 0) return -1; //devuelve en result lo necesario para crear socket, sino retorna -1
-
-    int fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol); //crea el socket y retorna fd
-    if (fd == -1) { // si falla el fd libera el result
-        freeaddrinfo(result);
-        return -1;
-    }
-
-    if (connect(fd, result->ai_addr, result->ai_addrlen) == -1) { //intenta conectarse al servidor
-        close(fd);
-        freeaddrinfo(result);
-        return -1; // si falla libera result y devuelve -1
-    }
-
-    freeaddrinfo(result);
-    return fd; //libera el result y devuelve el fd si todo sale bien
-}
 
 int handshake_kernel_memory(int fd, int cpu_id, t_log* logger) {
     t_modulo modulo = MOD_CPU; //le dice a Kernel memory que es la cpu

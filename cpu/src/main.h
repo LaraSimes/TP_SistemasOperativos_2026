@@ -2,6 +2,7 @@
 #define CPU_MAIN_H_
 
 #include "utils/general.h"
+#include "utils/cliente.h"
 #include <commons/log.h> //Biblioteca de la catedra
 #include <commons/config.h>
 
@@ -28,7 +29,6 @@ typedef struct {
 } t_config_valores;
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger); //Recibe la config, lo mete en el struct y lo loguea 
-int conectar_a_servidor(char* ip, char* puerto); // devuelve el fd del socket
 int handshake_kernel_memory(int fd, int cpu_id, t_log* logger);
 
 #endif
