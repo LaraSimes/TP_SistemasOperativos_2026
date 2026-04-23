@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
     char* identificador = argv[2];
     int cpu_id =atoi(identificador); // Convierte el string "0" en int 0, ya que el handshake envia el id como binario
     
-    logger=iniciar_logger(MOD_IO, LOG_LEVEL_INFO);
+    logger=iniciar_logger(MOD_CPU, LOG_LEVEL_INFO);
     t_config* config = iniciar_config(config_path);
 
     t_config_valores valores; //Declara struct en el stack
