@@ -1,4 +1,5 @@
 #include "conexiones.h"
+#include "utils/general.h"
 
 /*
 conexiones.c
