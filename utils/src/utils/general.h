@@ -24,6 +24,12 @@ typedef enum{
     MOD_KERNEL_MEMORY       //5
 } t_modulo;
 
+typedef enum {
+    OP_GET_INSTRUCCION = 1,
+    OP_GET_CONTEXT     = 2,
+    OP_SET_CONTEXT     = 3,
+} t_operacion;
+
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);
 

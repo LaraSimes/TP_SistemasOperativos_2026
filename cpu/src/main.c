@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
 
-    handshakear(fd_km,logger,MOD_KERNEL_MEMORY);
+    handshakear(fd_km, logger, MOD_KERNEL_MEMORY);
 
-     if (send(fd_km, &cpu_id, sizeof(int), 0) == -1)
+    if (send(fd_km, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a Memory Stick");
         return EXIT_FAILURE;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
-    handshakear(fd_ks,logger,MOD_KERNEL_SCHEDULER);
+    handshakear(fd_ks, logger, MOD_KERNEL_SCHEDULER);
     if (send(fd_ks, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a KM");
@@ -71,13 +71,12 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     }
-    handshakear(fd_ms,logger,MOD_MEMORY_STICK);
+    handshakear(fd_ms, logger, MOD_MEMORY_STICK);
     if (send(fd_ms, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a Memory Stick");
         return EXIT_FAILURE;
     }
-  
 
     log_info(logger, "CPU %d lista.Esperando PID del Kernel Scheduler", cpu_id);
     pause();
