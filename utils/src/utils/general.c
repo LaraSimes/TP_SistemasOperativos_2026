@@ -3,17 +3,17 @@
 t_log *iniciar_logger(t_modulo id, t_log_level nivel){
     t_log* nuevo_logger;
     switch (id){
-        case 0:
+        case MOD_KERNEL_SCHEDULER:
         nuevo_logger = log_create("KERNEL_SCHEDULER.log","KERNEL_SCHEDULER",1, nivel);
-        case 1:
+        case MOD_CPU:
         nuevo_logger = log_create("CPU.log","CPU",1, nivel);
-        case 2:
+        case MOD_MEMORY_STICK:
         nuevo_logger = log_create("MEMORY_STICK.log","MEMORY_STICK",1, nivel);
-        case 3:
+        case MOD_SWAP:
         nuevo_logger = log_create("SWAP.log","SWAP",1, nivel);
-        case 4:
+        case MOD_IO:
         nuevo_logger = log_create("IO.log","IO",1, nivel);
-        case 5:
+        case MOD_KERNEL_MEMORY:
         nuevo_logger = log_create("KERNEL_MEMORY.log","KERNEL_MEMORY",1, nivel);
     }
 	if(nuevo_logger != NULL){

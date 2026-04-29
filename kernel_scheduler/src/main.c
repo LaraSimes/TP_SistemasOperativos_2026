@@ -1,14 +1,6 @@
 #include "main.h"
 
-/*
-1ra entrega main.c 
-    Leer argumentos (config + path proceso inicial)
-    Inicializar logger
-    Inicializar config
-    Conectarse a Kernel Memory
-    Crear proceso inicial (PID 0)
-    Levantar el servidor
-*/
+// varibles para obtener valores del config
     static char* log_level_str;
     static t_log_level log_level;
     static char* ip_memoria;
@@ -16,7 +8,8 @@
     static char* puerto_escucha;
     t_log* logger;
 
-int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv = argument vector (los valores)
+
+int main(int argc, char* argv[]) {  
 
     if (argc < 3) {
         printf("Uso correcto: %s <config_path> <proceso0_path>\n", argv[0]);
@@ -27,13 +20,14 @@ int main(int argc, char* argv[]) {  // argc = argument count (cantidad) ; argv =
     char* proceso0_path =  argv[2];
 
     t_config* config;
+
     int conexion;
     int server_fd;
 
     config = iniciar_config(config_path);
     obtener_configuracion(config);
    
-    logger = iniciar_logger(MOD_KERNEL_SCHEDULER, LOG_LEVEL_INFO);
+    logger = iniciar_logger(MOD_KERNEL_SCHEDULER, log_level); 
 
     log_info(logger, "IP Memoria: %s", ip_memoria); 
     log_info(logger, "Puerto Memoria: %s", puerto_memoria); 
@@ -67,6 +61,5 @@ void obtener_configuracion(t_config* config){
 	ip_memoria = obtener_string("IP_MEMORIA", config);
     puerto_memoria = obtener_string("PUERTO_MEMORIA", config);
     puerto_escucha = obtener_string("PUERTO_ESCUCHA", config);
-
     return;
 }

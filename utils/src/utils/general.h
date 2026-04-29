@@ -27,4 +27,6 @@ typedef enum{
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);
 
+
+
 #endif
