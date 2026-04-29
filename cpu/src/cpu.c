@@ -5,7 +5,7 @@ char* fetch(int fd_km, int pid, uint32_t pc, t_log* logger) {
     log_info(logger, "## PID: %d - FETCH - Program Counter: %d", pid, pc); 
 
     //Enviar pc y pid a KM para pedir instruccion
-    int op = OP_GET_INSTRUCCION
+    int op = OP_GET_INSTRUCCION;
     send(fd_km, &op, sizeof(int), 0);
     send(fd_km, &pid, sizeof(int), 0);
     send(fd_km, &pc, sizeof(int), 0);

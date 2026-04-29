@@ -30,6 +30,27 @@ typedef enum {
     OP_SET_CONTEXT     = 3,
 } t_operacion;
 
+typedef struct {
+    uint32_t pc;  
+    uint8_t  ax;   
+    uint8_t  bx;
+    uint8_t  cx;
+    uint8_t  dx;
+    uint32_t eax;  
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    uint32_t si;   
+    uint32_t di;   
+} t_contexto;
+
+typedef enum {
+    CONTINUAR    = 0,
+    SYSCALL      = 1,
+    FIN_PROCESO  = 2,
+    SEG_FAULT    = 3,
+} t_resultado_ciclo;
+
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);
 
