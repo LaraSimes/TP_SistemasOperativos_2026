@@ -1,6 +1,8 @@
 #include "main.h"
     t_log* logger;
     t_config* config;
+    t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
+    int pid_a_buscar;
 
 int main(int argc, char* argv[]) 
 {
@@ -22,6 +24,8 @@ int main(int argc, char* argv[])
     log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
 
     int server_fd=iniciar_servidor(config_memoria.puerto_escucha); // donde se inicia el servidor
+
+    procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
 
     if(server_fd==-1){
         log_error(logger, "Fallo al iniciar el servidor"); //analizamos si falla el sv
@@ -56,7 +60,6 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->allocation_strategy=config_get_string_value(config,"ALLOCATION_STRATEGY");
     valores->scripts_basepath=config_get_string_value(config,"SCRIPTS_BASEPATH");
     valores->puerto_escucha=config_get_string_value(config,"PUERTO_ESCUCHA");
-
 }
 
 //paso b, fijarse
@@ -125,6 +128,39 @@ int esperar_cliente(int socket_servidor)
 	return socket_cliente;
 }
 
+bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o false
+        t_proceso_control* proceso = (t_proceso_control*) elemento;
+        return proceso->pid == pid_a_buscar;
+    }   
+
+t_proceso_control* buscar_proceso_por_pid(int pid){ //busco el proceso a traves de la funcion _es_el_proceso pasandole el pid_a_buscar como variable global
+    pid_a_buscar = pid;   
+    return list_find(procesos_activos, _es_el_proceso);
+}
+
+char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
+
+    FILE* archivo = fopen(path, "r");
+    if (archivo == NULL){
+        return NULL;
+    }
+    char* linea = malloc(128); //espacio suficiente para una instruccion
+    uint32_t renglon_actual = 0; //contador
+
+    //recorro el archivo renglon por renglon
+    while(fgets(linea, 128, archivo) != NULL) { //leo una linea completa de un archivo txt
+        if(renglon_actual == pc) { //encontramos el pc buscado, se saca el \n del final si existe
+            linea[strcspn(linea, "\n")] = '\0';
+            fclose(archivo);
+            return linea; //buffer donde se va a guardar lo que leyo
+        }
+        renglon_actual ++;
+    }
+    fclose(archivo);
+    free(linea);
+    return NULL;
+}
+
 void* manejar_cliente(void* arg) {
 
     int cliente_fd = *(int*)arg;
@@ -133,6 +169,7 @@ void* manejar_cliente(void* arg) {
     t_modulo id_recibida;
     int cpu_id;
 
+    // El handhsake se hace solo 1 vez al principio de la conexion
     int bytes = recv(cliente_fd, &id_recibida, sizeof(int), MSG_WAITALL);
 
     if (bytes <= 0) {
@@ -144,41 +181,148 @@ void* manejar_cliente(void* arg) {
     int recibido = 0;
     send(cliente_fd, &recibido, sizeof(int), 0);
 
-    switch(id_recibida){
-
+    switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
-            log_info(logger, "## Kernel Scheduler Conectado - FD del socket: %d", cliente_fd);
+            log_info(logger, "## Kernel Scheduler Conectado");
             break;
-
+        
         case MOD_CPU:
             recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
             log_info(logger, "## CPU %d Conectada", cpu_id);
             break;
-
-        case MOD_MEMORY_STICK:
+        
+        case MOD_MEMORY_STICK:{
             int tamanio_ms_recibido;
             recv(cliente_fd, &tamanio_ms_recibido, sizeof(int), MSG_WAITALL);
-            log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido); //falta poner tamaño 
+            log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido);
             break;
-
+        }
+        
         case MOD_SWAP:
             log_info(logger, "## SWAP Conectado");
             break;
 
         default:
-            log_warning(logger, "Cliente desconocido");
-            close(cliente_fd);
-            return NULL;
+            log_warning(logger, "Módulo desconocido intentando conectarse");
+            break;
     }
 
+    while (true) { // Donde el hilo se queda activo hasta que cliente se vaya
+         op_code cod_op; // creo variable cod op donde me va a indicar cual es la operacion a realizar gracias al switch. el op_code se declaro en el conexiones.h
+
+        int res= recv(cliente_fd, &cod_op, sizeof(op_code), MSG_WAITALL); //recibo la proxima operacion
+
+        if(res <= 0){ // si da menor que 0, es porque el cliente se desconecto, se corta el while por el break
+            log_info(logger, "Cliente desconectado del socket %d", cliente_fd);
+            break;
+        }
+
+        switch(id_recibida){
+
+            case MOD_KERNEL_SCHEDULER: {
+                if(cod_op==CREAR_PROCESO){
+                    recibir_creacion_proceso(cliente_fd);
+                }
+                break;
+            }
+
+            case MOD_CPU:{
+                if (cod_op == SOLICITAR_INSTRUCCION){
+                    int pid_pedido;
+                    uint32_t pc_pedido;
+
+                    //recibo los datos de la CPU
+                    int res_pid = recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL);
+                    int res_pc = recv(cliente_fd, &pc_pedido, sizeof(uint32_t), MSG_WAITALL);
+
+                    if(res_pid <= 0 || res_pc <= 0) {
+                        log_error(logger, "Error al recibir pedido de instruccion");
+                        break;
+                    }
+
+                    //busco el proceso con la funcion definida antes
+                    t_proceso_control* proceso_encontrado = buscar_proceso_por_pid(pid_pedido);
+
+                    if(proceso_encontrado != NULL) {
+                        char* instruccion_texto = leer_instruccion_de_archivo(proceso_encontrado->path_instrucciones, pc_pedido);
+                    
+                        if(instruccion_texto != NULL){
+
+                            int tam = strlen(instruccion_texto) + 1; // saco el tamaño de la instruccion
+                            send(cliente_fd, &tam, sizeof(int), 0); //envio el tamaño
+                            send(cliente_fd, instruccion_texto, tam, 0); //envio la instruccion
+
+                            log_info(logger, "## PID: %d - Obtener instruccion: %d - Instruccion: %s", pid_pedido, pc_pedido, instruccion_texto);
+                            free (instruccion_texto);
+                        } else{
+                            log_error(logger, "No se encontro la instruccion para el PC %d", pc_pedido);
+                        }
+                    
+                    } else{
+                        log_error(logger, "Nose encontro el PID %d en la memoria", pid_pedido);
+                    }   
+                } else{
+                    log_warning(logger, "Opcion desconocida para CPU");
+                }
+                    break;
+            }
+            case MOD_MEMORY_STICK:
+                break;
+
+            case MOD_SWAP:
+                break;
+
+            default:
+                break;
+        }   
+    }
     close(cliente_fd);
     return NULL;
+}
+
+void recibir_creacion_proceso(int socket_cliente){
+    int pid_recibido;
+    int tam_path;
+
+    recv(socket_cliente, &pid_recibido, sizeof(int), MSG_WAITALL); //recibo el pid
+    recv(socket_cliente, &tam_path, sizeof(int), MSG_WAITALL); //recibo el tamaño del path para saber cuanto espacio pedir
+    
+    char* path_recibido= malloc(tam_path);
+    recv(socket_cliente, path_recibido, tam_path, MSG_WAITALL);
+    
+    // creo el proceso en la lista
+    t_proceso_control* nuevo_proceso = malloc(sizeof(t_proceso_control)); 
+    nuevo_proceso->pid = pid_recibido;
+    nuevo_proceso->path_instrucciones = path_recibido;
+
+    //inicializamos todos los registros en 0
+    nuevo_proceso->registros.pc = 0;
+    nuevo_proceso->registros.ax = 0;
+    nuevo_proceso->registros.bx = 0;
+    nuevo_proceso->registros.cx = 0;
+    nuevo_proceso->registros.dx = 0;
+
+    nuevo_proceso->registros.eax = 0;
+    nuevo_proceso->registros.ebx = 0;
+    nuevo_proceso->registros.ecx = 0;
+    nuevo_proceso->registros.edx = 0;
+
+    nuevo_proceso->registros.si = 0;
+    nuevo_proceso->registros.di = 0;
+
+    //guardar el proceso creado en una lista global ya que esta fuera del main.c
+    //guarda punteros a las estructuras de t_proceso_control declarado en el main.h
+    list_add(procesos_activos, nuevo_proceso);
+
+    log_info(logger,"## PID: %d - Proceso Creado", pid_recibido);
+
 }
 
 void terminar_programa(int server_fd, t_log* logger, t_config* config)
 {
 	/* Y por ultimo, hay que liberar lo que utilizamos (conexion, log y config) 
 	  con las funciones de las commons y del TP mencionadas en el enunciado */
+        list_destroy_and_destroy_elements(procesos_activos, (void*)free);
 		log_destroy(logger);
 		config_destroy(config);	  
 		close(server_fd);
