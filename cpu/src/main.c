@@ -33,7 +33,12 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
 
-    handshakear(fd_km, logger, MOD_KERNEL_MEMORY);
+    //handshakear(fd_km, logger, MOD_KERNEL_MEMORY);
+     if (!handshake(fd_km, logger, MOD_CPU, MOD_KERNEL_MEMORY)) {
+        log_error(logger, "Fallo el handshake con Memoria");
+        close(fd_km);
+        return EXIT_FAILURE;
+    }   
 
     if (send(fd_km, &cpu_id, sizeof(int), 0) == -1)
     {
@@ -52,7 +57,14 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     } // Si falla conexion, destruye config y log y devuelve error
-    handshakear(fd_ks, logger, MOD_KERNEL_SCHEDULER);
+
+    // handshakear(fd_ks, logger, MOD_KERNEL_SCHEDULER);
+    if (!handshake(fd_ks, logger, MOD_CPU, MOD_KERNEL_SCHEDULER)) {
+        log_error(logger, "Fallo el handshake con Kernel");
+        close(fd_ks);
+        return EXIT_FAILURE;
+    } 
+
     if (send(fd_ks, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a KM");
@@ -71,7 +83,12 @@ int main(int argc, char *argv[])
         log_destroy(logger);
         return EXIT_FAILURE;
     }
-    handshakear(fd_ms, logger, MOD_MEMORY_STICK);
+    // handshakear(fd_ms, logger, MOD_MEMORY_STICK);
+    if (!handshake(fd_ms, logger, MOD_CPU, MOD_MEMORY_STICK)) {
+        log_error(logger, "Fallo el handshake con Memory Stick");
+        close(fd_ms);
+        return EXIT_FAILURE;
+    } 
     if (send(fd_ms, &cpu_id, sizeof(int), 0) == -1)
     {
         log_error(logger, "Error enviando cpu_id a Memory Stick");

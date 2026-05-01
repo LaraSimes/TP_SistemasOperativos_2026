@@ -35,17 +35,17 @@ int main(int argc, char* argv[]) {
     log_info(logger, "log level: %s", log_level_str); 
 
 
-    // conexion = crear_cliente(ip_memoria, puerto_memoria);
-    // if (conexion == -1) {
-    //     log_error(logger, "No se pudo conectar a memoria");
-    //     return EXIT_FAILURE;
-    // }
+    conexion = crear_cliente(ip_memoria, puerto_memoria);
+    if (conexion == -1) {
+        log_error(logger, "No se pudo conectar a memoria");
+        return EXIT_FAILURE;
+    }
 
-    // if (!handshake(conexion, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
-    //     log_error(logger, "Fallo el handshake con memoria");
-    //     close(conexion);
-    //     return EXIT_FAILURE;
-    // }
+    if (!handshake(conexion, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
+        log_error(logger, "Fallo el handshake con memoria");
+        close(conexion);
+        return EXIT_FAILURE;
+    }
 
 
     server_fd = iniciar_servidor(puerto_escucha);

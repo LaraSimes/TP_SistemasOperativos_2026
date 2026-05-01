@@ -18,7 +18,12 @@ int main(int argc, char* argv[]) {
         liberar(logger,config,sckt_Kmemory);
         return -1;
     }
-    handshakear(sckt_Kmemory,logger,MOD_KERNEL_MEMORY);
+    // handshakear(sckt_Kmemory,logger,MOD_KERNEL_MEMORY);
+    if (!handshake(sckt_Kmemory, logger, MOD_SWAP, MOD_KERNEL_MEMORY)) {
+        log_error(logger, "Fallo el handshake con Memoria");
+        close(sckt_Kmemory);
+        return EXIT_FAILURE;
+    } 
     liberar(logger,config,sckt_Kmemory);
     return 0;
 }
