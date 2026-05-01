@@ -40,3 +40,10 @@ t_config* iniciar_config(char* path){
     }
     return config;
 }
+
+t_tipo_io parsear_tipo(char *tipo) {
+    if (strcmp(tipo, "SLEEP") == 0)  return IO_SLEEP;
+    if (strcmp(tipo, "STDIN") == 0)  return IO_STDIN;
+    if (strcmp(tipo, "STDOUT") == 0) return IO_STDOUT;
+    return -1;
+}

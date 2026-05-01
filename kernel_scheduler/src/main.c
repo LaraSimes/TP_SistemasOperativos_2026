@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
     //     return EXIT_FAILURE;
     // }
 
-    // if (!handshakear(conexion, logger, MOD_KERNEL_MEMORY)) {
+    // if (!handshake(conexion, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
     //     log_error(logger, "Fallo el handshake con memoria");
     //     close(conexion);
     //     return EXIT_FAILURE;

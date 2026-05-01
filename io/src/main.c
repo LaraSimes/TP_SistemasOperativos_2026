@@ -2,6 +2,11 @@
 
 int main(int argc, char* argv[]) {
 
+    if (argc < 3) {
+        printf("Uso: ./bin/io [Archivo Config] [Tipo]\n");
+        return EXIT_FAILURE;
+    }
+
     t_log *logger;
     t_config *config;
     t_log_level log_level;
@@ -34,6 +39,60 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    t_tipo_io tipo = parsear_tipo(argv[2]);
+    if (tipo == -1) {
+        log_error(logger, "Tipo de IO desconocido: %s", argv[2]);
+        return EXIT_FAILURE;
+    }
+
+    while (1) {
+        int pid;
+        if (recv(conexion, &pid, sizeof(int), MSG_WAITALL) <= 0) {
+            log_warning(logger, "Kernel Scheduler desconectado");
+            break;
+        }
+
+        log_info(logger, "## PID: %d - Inicio de IO", pid);
+
+        switch (tipo) {
+            case IO_SLEEP: {
+                int ms;
+                recv(conexion, &ms, sizeof(int), MSG_WAITALL);
+                log_info(logger, "## PID: %d - Haciendo sleep por %d milisegundos.", pid, ms);
+                usleep(ms * 1000);
+                int ok = 1;
+                send(conexion, &ok, sizeof(int), 0);
+                break;
+            }
+            case IO_STDIN: {
+                int cantidad;
+                recv(conexion, &cantidad, sizeof(int), MSG_WAITALL);
+                log_info(logger, "## PID: %d - Ingrese %d caracteres:", pid, cantidad);
+                char *buffer = calloc(cantidad + 1, sizeof(char));
+                char linea[1024];
+                fgets(linea, sizeof(linea), stdin);
+                linea[strcspn(linea, "\n")] = '\0';
+                strncpy(buffer, linea, cantidad);
+                send(conexion, buffer, cantidad, 0);
+                free(buffer);
+                break;
+            }
+            case IO_STDOUT: {
+                int tamanio;
+                recv(conexion, &tamanio, sizeof(int), MSG_WAITALL);
+                char *contenido = calloc(tamanio + 1, sizeof(char));
+                recv(conexion, contenido, tamanio, MSG_WAITALL);
+                log_info(logger, "## PID: %d - %s", pid, contenido);
+                free(contenido);
+                int ok = 1;
+                send(conexion, &ok, sizeof(int), 0);
+                break;
+            }
+        }
+
+        log_info(logger, "## PID: %d - Fin de IO", pid);
+    }
+    close(conexion);
     return 0;
 }
 

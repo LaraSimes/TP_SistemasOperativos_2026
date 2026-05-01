@@ -14,6 +14,13 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+typedef enum {
+    IO_SLEEP,
+    IO_STDIN,
+    IO_STDOUT
+} t_tipo_io;
+
+t_tipo_io parsear_tipo(char *tipo);
 
 typedef enum{
     MOD_KERNEL_SCHEDULER,    //0
