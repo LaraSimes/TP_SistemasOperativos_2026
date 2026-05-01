@@ -14,4 +14,4 @@
 
 
 int crear_cliente(char *ip, char* puerto);
-void handshakear (int socket_cliente, t_log *log, t_modulo id);
+bool handshakear (int socket_cliente, t_log *log, t_modulo id);

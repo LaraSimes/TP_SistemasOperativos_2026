@@ -9,8 +9,10 @@
 #include <stddef.h>     // NULL
 
 #include <commons/log.h> // t_log, log_info, log_warning
+#include "utils/general.h"
 
-void atender_clientes(int server_fd);
+
+void manejar_clientes(int server_fd);
 void* atender_cliente(void* arg);
 int recibir_operacion(int socket_cliente);
 

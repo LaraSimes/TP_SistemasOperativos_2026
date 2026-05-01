@@ -1,24 +1,39 @@
-#include "conexiones.h"
+#include "main.h"
 
 int main(int argc, char* argv[]) {
+
     t_log *logger;
     t_config *config;
+    t_log_level log_level;
+    int conexion;
 
-    logger=iniciar_logger(MOD_IO,LOG_LEVEL_INFO);
     config = config_create(argv[1]);
-    if (config == NULL ){
-	    log_debug(logger,"No se pudo crear el config");
-		abort();
-	};
-    char *ip = config_get_string_value(config,"IP");
-	char *puerto= config_get_string_value(config,"PUERTO");
-    int sckt_scheduler= crear_cliente(ip,puerto);
-    if (sckt_scheduler == -1) {
-        log_error(logger, "No se pudo conectar a Kernel Scheduler");
-        liberar(logger,config,sckt_scheduler);
-        return -1;
+    if (config == NULL) {
+        printf("No se pudo crear el config\n");
+        abort();
     }
-    handshakear(sckt_scheduler,logger,MOD_KERNEL_SCHEDULER);
-    liberar(logger,config,sckt_scheduler);
+
+    char *ip = config_get_string_value(config,"IP");
+	char *puerto_kernel = config_get_string_value(config,"PUERTO_KERNEL");
+    log_level = log_level_from_string(config_get_string_value(config, "LOG_LEVEL"));
+
+    logger = iniciar_logger(MOD_IO, log_level);
+
+    // Conexion a Kernel
+    conexion = crear_cliente(ip, puerto_kernel);
+    if (conexion == -1) {
+        log_error(logger, "No se pudo conectar a Kernel Scheduler");
+        close(conexion);
+        return EXIT_FAILURE;
+    }
+
+    // Handshake con Kernel
+    if (!handshake(conexion, logger, MOD_IO, MOD_KERNEL_SCHEDULER)) {
+        log_error(logger, "Fallo el handshake con KERNEL");
+        close(conexion);
+        return EXIT_FAILURE;
+    }
+
     return 0;
 }
+
