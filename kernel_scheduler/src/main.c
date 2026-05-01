@@ -40,12 +40,17 @@ int main(int argc, char* argv[]) {
         log_error(logger, "No se pudo conectar a memoria");
         return EXIT_FAILURE;
     }
-    handshakear(conexion,logger,MOD_KERNEL_MEMORY);
+
+    if (!handshakear(conexion, logger, MOD_KERNEL_MEMORY)) {
+        log_error(logger, "Fallo el handshake con memoria");
+        close(conexion);
+        return EXIT_FAILURE;
+    }
 
 
     server_fd = iniciar_servidor(puerto_escucha);
     if (server_fd == -1) {
-    log_error(logger, "No se pudo iniciar el servidor");
+    log_error(logger, "No se pudo insiciar el servidor");
     return EXIT_FAILURE;
     }
 	log_info(logger, "Servidor listo para recibir clientes");

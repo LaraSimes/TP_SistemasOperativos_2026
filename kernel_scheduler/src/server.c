@@ -1,14 +1,5 @@
 #include "server.h"
-/*
-server.c
-    Iniciar servidor
-    Escuchar conexiones en loop infinito
-    Crear un hilo por cada cliente
-    Identificar tipo de cliente (CPU / IO)
-    Loguear conexión de CPU
-    Mantener conexiones activas
-    Manejar desconexiones sin romper el sistema
-*/
+
 
 extern t_log* logger;
 
@@ -17,15 +8,17 @@ void atender_clientes(int server_fd){
     while (1) {
         int cliente_fd = esperar_cliente(server_fd);
         pthread_t hilo;
-        pthread_create(&hilo, NULL, atender_cliente, (void*) cliente_fd);
+        int* fd_ptr = malloc(sizeof(int));
+        *fd_ptr = cliente_fd;
+        pthread_create(&hilo, NULL, atender_cliente, fd_ptr);
         pthread_detach(hilo);
     }
-
     return;
 }
 
 void* atender_cliente(void* arg) {
-    int cliente_fd = (int) arg;
+    int cliente_fd = *(int*)arg; // casteo
+    free(arg);
     int cpu_id;
     int tipo = recibir_operacion(cliente_fd);
 

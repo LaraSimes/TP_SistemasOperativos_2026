@@ -23,24 +23,33 @@ int crear_cliente(char *ip, char* puerto){
 }
 
 
-void handshakear (int socket_cliente, t_log *log, t_modulo id){
-	t_modulo modulo = id;
-	int mensaje;
-	if (send(socket_cliente,&modulo,sizeof(t_modulo),0)==-1){
-		log_debug(log,"Problema enviando handshake");
-	}
-	if (recv(socket_cliente,&mensaje,sizeof(int),0)<=0){
-		log_debug(log,"Problema recibiendo handshake");
-	}
-	else{
-		switch (id)
-		{
-		case 0:
-		log_info(log,"## Conectado a Kernel Scheduler");
-		case 2:
-		log_info(log,"## Conectado a Memory Stick");
-		case 5:
-		log_info(log,"## Conectado a Kernel Memory");
-		};
-	}
+// handshakear ahora retorna bool
+void handshakear(int socket_cliente, t_log *log, t_modulo id) {
+    int mensaje;
+
+    if (send(socket_cliente, &id, sizeof(t_modulo), 0) == -1) {
+        log_error(log, "Problema enviando handshake");
+        return false;
+    }
+
+    if (recv(socket_cliente, &mensaje, sizeof(int), 0) <= 0) {
+        log_error(log, "Problema recibiendo handshake");
+        return false;
+    }
+
+    switch (id) {
+        case MOD_KERNEL_SCHEDULER:
+            log_info(log, "## Conectado a Kernel Scheduler");
+            break;
+        case MOD_MEMORY_STICK:
+            log_info(log, "## Conectado a Memory Stick");
+            break;
+        case MOD_KERNEL_MEMORY:
+            log_info(log, "## Conectado a Kernel Memory");
+            break;
+        default:
+            log_warning(log, "## Módulo desconocido (id: %d)", id);
+            break;
+    }
+    return ;
 }
