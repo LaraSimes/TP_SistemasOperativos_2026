@@ -28,7 +28,6 @@ int main(int argc, char* argv[]) {
     conexion = crear_cliente(ip, puerto_kernel);
     if (conexion == -1) {
         log_error(logger, "No se pudo conectar a Kernel Scheduler");
-        close(conexion);
         return EXIT_FAILURE;
     }
 
@@ -74,6 +73,8 @@ int main(int argc, char* argv[]) {
                 linea[strcspn(linea, "\n")] = '\0';
                 strncpy(buffer, linea, cantidad);
                 send(conexion, buffer, cantidad, 0);
+                int ok = 1;
+                send(conexion, &ok, sizeof(int), 0);
                 free(buffer);
                 break;
             }
