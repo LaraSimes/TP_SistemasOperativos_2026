@@ -34,20 +34,19 @@ int main(int argc, char* argv[]) {
     log_info(logger, "Puerto Escucha: %s", puerto_escucha); 
     log_info(logger, "log level: %s", log_level_str); 
 
-
+    // Conexion a Memoria
     conexion = crear_cliente(ip_memoria, puerto_memoria);
     if (conexion == -1) {
         log_error(logger, "No se pudo conectar a memoria");
         return EXIT_FAILURE;
     }
-
+    // Handshake con Memoria
     if (!handshake(conexion, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
         log_error(logger, "Fallo el handshake con memoria");
         close(conexion);
         return EXIT_FAILURE;
     }
-
-
+    // Levanta servidor multihilos
     server_fd = iniciar_servidor(puerto_escucha);
     if (server_fd == -1) {
     log_error(logger, "No se pudo insiciar el servidor");
@@ -55,6 +54,13 @@ int main(int argc, char* argv[]) {
     }
 	log_info(logger, "Servidor listo para recibir clientes");
     manejar_clientes(server_fd);
+
+    iniciar_planificador();
+    iniciar_dispatcher();
+    
+    int pid = generar_pid();                                                                    
+    t_pcb* pcb = crear_pcb(pid, proceso0_path, 0);
+    encolar_ready(pcb);   
 
     return 0;
 }

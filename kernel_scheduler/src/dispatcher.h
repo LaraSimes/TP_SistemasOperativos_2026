@@ -7,7 +7,7 @@
 
 extern sem_t sem_dispatcher;
 
-void init_dispatcher();
+void iniciar_dispatcher();
 void* dispatcher_thread(void* arg);
 void wake_dispatcher();
 

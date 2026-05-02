@@ -14,12 +14,14 @@ t_list* lista_ios;
 pthread_mutex_t mutex_ready  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_block  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cpus   = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_ios    = PTHREAD_MUTEX_INITIALIZER;
+
 
 // PID autoincremental
 static int siguiente_pid = 0;
 static pthread_mutex_t mutex_pid = PTHREAD_MUTEX_INITIALIZER;
 
-void iniciar_planificador() {
+void iniciar_planificador() { // Crea todas las colas y listas vacías al arrancar
     cola_new   = queue_create();
     cola_ready = queue_create();
     cola_block = queue_create();
@@ -38,7 +40,7 @@ t_pcb* crear_pcb(int pid, char* path, int prioridad) {
     return pcb;
 }
 
-int generar_pid() {
+int generar_pid() { // PID: Procces ID
     pthread_mutex_lock(&mutex_pid);
     int pid = siguiente_pid++;
     pthread_mutex_unlock(&mutex_pid);
@@ -61,6 +63,7 @@ void encolar_ready(t_pcb* pcb) {
     pthread_mutex_lock(&mutex_ready);
     queue_push(cola_ready, pcb);
     pthread_mutex_unlock(&mutex_ready);
+    wake_dispatcher();
 }
 
 t_pcb* desencolar_ready() {
@@ -92,11 +95,58 @@ t_cpu* buscar_cpu_libre() {
 }
 
 t_io_registrada* buscar_io(t_tipo_io tipo) {
-    for (int i = 0; i < list_size(lista_ios); i++) {
-        t_io_registrada* io = list_get(lista_ios, i);
-        if (io->tipo == tipo && io->libre) {
-            return io;
+      pthread_mutex_lock(&mutex_ios);
+      t_io_registrada* encontrada = NULL;
+      for (int i = 0; i < list_size(lista_ios); i++) {
+          t_io_registrada* io = list_get(lista_ios, i);
+          if (io->tipo == tipo && io->libre) {
+              encontrada = io;
+              break;
+          }
+      }
+      pthread_mutex_unlock(&mutex_ios);
+      return encontrada;
+  }
+
+t_pcb* buscar_en_block(int pid){
+    pthread_mutex_lock(&mutex_block);                                                                                                                                                                  
+    t_pcb* encontrado = NULL;
+    for (int i = 0; i < list_size(cola_block->elements); i++) {     // cola_block->elements es el t_list*                                          
+        t_pcb* pcb = list_get(cola_block->elements, i);                                                       
+          if (pcb->pid == pid) {                                                                                
+                encontrado = pcb;                                                                                 
+                list_remove(cola_block->elements, i);                                                             
+            break;                                                                                          
+          }
+      }
+      pthread_mutex_unlock(&mutex_block);                                                                       
+      return encontrado;
+}
+
+t_cpu* buscar_cpu_por_fd(int fd) {                                                                            
+      pthread_mutex_lock(&mutex_cpus);                                                                        
+      t_cpu* encontrada = NULL;                                                                                 
+      for (int i = 0; i < list_size(lista_cpus); i++) {                                                         
+          t_cpu* cpu = list_get(lista_cpus, i);                                                                 
+          if (cpu->fd == fd) {                                                                                  
+              encontrada = cpu;                                                                                 
+              break;
+          }                                                                                                     
+      }                                                                                                       
+      pthread_mutex_unlock(&mutex_cpus);
+      return encontrada;
+  }
+
+t_io_registrada* buscar_io_por_fd(int fd){
+    pthread_mutex_lock(&mutex_ios);                                                                           
+        t_io_registrada* encontrada = NULL;                                                                       
+        for (int i = 0; i < list_size(lista_ios); i++) {                                                        
+            t_io_registrada* io = list_get(lista_ios, i);                                                         
+            if (io->fd == fd) {                                                                                 
+                encontrada = io;                                                                                  
+                break;                                                                                          
+            }
         }
-    }
-    return NULL;
+        pthread_mutex_unlock(&mutex_ios);
+        return encontrada;
 }

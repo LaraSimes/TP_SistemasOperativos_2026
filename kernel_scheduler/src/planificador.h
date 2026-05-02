@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include "utils/general.h"
+#include "dispatcher.h"
 
 // Estado de un proceso
 typedef enum {
@@ -34,6 +35,7 @@ typedef struct {
     int fd;
     int id;
     int libre;   // 1 = libre, 0 = ocupada
+    t_pcb* pcb_actual;
 } t_cpu;
 
 // Colas globales
@@ -49,18 +51,21 @@ extern t_list* lista_ios;
 extern pthread_mutex_t mutex_ready;
 extern pthread_mutex_t mutex_block;
 extern pthread_mutex_t mutex_cpus;
+extern pthread_mutex_t mutex_ios;
 
 // Funciones
 t_pcb* crear_pcb(int pid, char* path, int prioridad);
 void cambiar_estado(t_pcb* pcb, t_estado nuevo_estado);
 void encolar_ready(t_pcb* pcb);
 t_cpu* buscar_cpu_libre();
+t_pcb* buscar_en_block(int pid);
 
 // registro IO
 typedef struct {
     int fd;
     t_tipo_io tipo;
     int libre;
+    int pid_actual;
 } t_io_registrada;
 
 void iniciar_planificador();
@@ -68,5 +73,7 @@ int generar_pid();
 t_pcb* desencolar_ready();
 void encolar_block(t_pcb* pcb);
 t_io_registrada* buscar_io(t_tipo_io tipo);
+t_cpu* buscar_cpu_por_fd(int fd);
+t_io_registrada* buscar_io_por_fd(int fd);
 
 #endif

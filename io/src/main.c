@@ -43,6 +43,7 @@ int main(int argc, char* argv[]) {
         log_error(logger, "Tipo de IO desconocido: %s", argv[2]);
         return EXIT_FAILURE;
     }
+    send(conexion, &tipo, sizeof(t_tipo_io), 0); // envio tipo de IO.
 
     while (1) {
         int pid;

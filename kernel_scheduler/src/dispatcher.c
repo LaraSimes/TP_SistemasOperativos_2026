@@ -5,7 +5,7 @@ extern t_log* logger;
 // Semaforo para despertar al despachador
 sem_t sem_dispatcher;
 
-void init_dispatcher() {
+void iniciar_dispatcher() {
     sem_init(&sem_dispatcher, 0, 0);
     pthread_t hilo;
     pthread_create(&hilo, NULL, dispatcher_thread, NULL);
@@ -37,6 +37,8 @@ void* dispatcher_thread(void* arg) {
         if (send(cpu->fd, &pcb->pid, sizeof(int), 0) == -1) {
             log_error(logger, "Error enviando PID a CPU");
         }
+        cpu->pcb_actual = pcb;
+
     }
     return NULL;
 }

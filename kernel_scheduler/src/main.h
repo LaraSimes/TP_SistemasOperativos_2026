@@ -13,6 +13,8 @@
 #include "utils/hello.h"
 #include "utils/general.h"
 #include "utils/cliente.h"
+#include "planificador.h"
+#include "dispatcher.h"
 
 void obtener_configuracion();
 
