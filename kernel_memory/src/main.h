@@ -12,7 +12,6 @@
 #include <netdb.h>
 #include <string.h>
 #include <pthread.h> 
-#include "conexiones.h"
 #include "utils/general.h"
 
 typedef struct{
@@ -24,17 +23,10 @@ typedef struct{
     char* scripts_basepath;
     char* puerto_escucha; 
 } t_config_valores;
-
-typedef struct {
-    uint32_t pc, eax, ebx, ecx, edx;
-    uint8_t ax, bx, cx, dx;
-    uint32_t si, di; // dir logica origen, dir logica destino
-} t_registros;
-//definimos registros y contador de programa
 typedef struct {
     int pid;
     char* path_instrucciones;
-    t_registros registros;
+    t_contexto contexto;
 } t_proceso_control;
 // definimos struct del pid y path de instrucciones. Molde de 1 procesoS
 
@@ -51,7 +43,8 @@ t_proceso_control* buscar_proceso_por_pid(int pid);
 
 bool _es_el_proceso(void* elemento);
 
-
 extern t_list* procesos_activos;
+
+pthread_mutex_t mutex_lista_procesos;
 
 #endif

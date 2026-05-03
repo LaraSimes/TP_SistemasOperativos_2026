@@ -26,6 +26,7 @@ int main(int argc, char* argv[])
     int server_fd=iniciar_servidor(config_memoria.puerto_escucha); // donde se inicia el servidor
 
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
+    pthread_mutex_init(&mutex_lista_procesos, NULL);
 
     if(server_fd==-1){
         log_error(logger, "Fallo al iniciar el servidor"); //analizamos si falla el sv
@@ -51,7 +52,6 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-
 void cargar_informacion_configuracion(t_config*config, t_config_valores* valores){
     valores->segment_max_size=config_get_int_value(config,"SEGMENT_MAX_SIZE");
     valores->instruction_delay=config_get_int_value(config,"INSTRUCTION_DELAY");
@@ -61,8 +61,6 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->scripts_basepath=config_get_string_value(config,"SCRIPTS_BASEPATH");
     valores->puerto_escucha=config_get_string_value(config,"PUERTO_ESCUCHA");
 }
-
-//paso b, fijarse
 
 int iniciar_servidor(char*puerto)
 {
@@ -77,13 +75,11 @@ int iniciar_servidor(char*puerto)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 
-	
 	err= getaddrinfo(NULL, puerto, &hints, &servinfo);
     if(err!=0){
         printf("Error en Getaddrinfo");
         return -1;
     }
-
 	// Creamos el socket de escucha del servidor
 	socket_servidor = socket(servinfo->ai_family,servinfo->ai_socktype,servinfo->ai_protocol);
     if(socket_servidor==-1){
@@ -91,8 +87,6 @@ int iniciar_servidor(char*puerto)
         freeaddrinfo(servinfo);
         return -1;
     }
-
-
 	// Asociamos el socket a un puerto
 	err = setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEPORT, &(int){1}, sizeof(int));
 	err = bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen);
@@ -108,10 +102,8 @@ int iniciar_servidor(char*puerto)
         freeaddrinfo(servinfo);
         return -1;
     }
-
 	freeaddrinfo(servinfo);
 	printf("Servidor de Memoria listo para escuchar en el puerto: %s\n", puerto);
-
 	return socket_servidor;
 }
 
@@ -134,12 +126,14 @@ bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o fa
     }   
 
 t_proceso_control* buscar_proceso_por_pid(int pid){ //busco el proceso a traves de la funcion _es_el_proceso pasandole el pid_a_buscar como variable global
+    pthread_mutex_lock(&mutex_lista_procesos);
     pid_a_buscar = pid;   
-    return list_find(procesos_activos, _es_el_proceso);
+    t_proceso_control* resultado = list_find(procesos_activos, _es_el_proceso);
+    pthread_mutex_unlock(&mutex_lista_procesos);
+    return resultado;
 }
 
 char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
-
     FILE* archivo = fopen(path, "r");
     if (archivo == NULL){
         return NULL;
@@ -162,7 +156,6 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
 }
 
 void* manejar_cliente(void* arg) {
-
     int cliente_fd = *(int*)arg;
     free(arg);
 
@@ -183,7 +176,7 @@ void* manejar_cliente(void* arg) {
 
     switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
-            log_info(logger, "## Kernel Scheduler Conectado");
+            log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d", cliente_fd);
             break;
         
         case MOD_CPU:
@@ -208,9 +201,9 @@ void* manejar_cliente(void* arg) {
     }
 
     while (true) { // Donde el hilo se queda activo hasta que cliente se vaya
-         op_code cod_op; // creo variable cod op donde me va a indicar cual es la operacion a realizar gracias al switch. el op_code se declaro en el conexiones.h
+         t_operacion cod_op; // creo variable cod op donde me va a indicar cual es la operacion a realizar gracias al switch. el op_code se declaro en el conexiones.h
 
-        int res= recv(cliente_fd, &cod_op, sizeof(op_code), MSG_WAITALL); //recibo la proxima operacion
+        int res= recv(cliente_fd, &cod_op, sizeof(t_operacion), MSG_WAITALL); //recibo la proxima operacion
 
         if(res <= 0){ // si da menor que 0, es porque el cliente se desconecto, se corta el while por el break
             log_info(logger, "Cliente desconectado del socket %d", cliente_fd);
@@ -220,14 +213,14 @@ void* manejar_cliente(void* arg) {
         switch(id_recibida){
 
             case MOD_KERNEL_SCHEDULER: {
-                if(cod_op==CREAR_PROCESO){
+                if(cod_op==OP_GET_PROCESO){
                     recibir_creacion_proceso(cliente_fd);
                 }
                 break;
             }
 
             case MOD_CPU:{
-                if (cod_op == SOLICITAR_INSTRUCCION){
+                if (cod_op == OP_GET_INSTRUCCION){
                     int pid_pedido;
                     uint32_t pc_pedido;
 
@@ -261,8 +254,37 @@ void* manejar_cliente(void* arg) {
                     } else{
                         log_error(logger, "Nose encontro el PID %d en la memoria", pid_pedido);
                     }   
-                } else{
-                    log_warning(logger, "Opcion desconocida para CPU");
+                } 
+                else if (cod_op == OP_GET_CONTEXT){ 
+                    int pid_pedido;
+                    if(recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL) > 0 ){ 
+                        t_proceso_control* proceso_a_buscar = buscar_proceso_por_pid(pid_pedido);
+
+                        if(proceso_a_buscar != NULL){
+                            send(cliente_fd, &(proceso_a_buscar->contexto), sizeof(t_contexto), 0);
+                            log_info(logger, "PID: %d - Contexto enviado a CPU", pid_pedido);
+                        } else{
+                            log_error(logger, "PID: %d no encontrado para enviar contexto", pid_pedido);
+                        }
+                    }
+                } 
+                else if (cod_op == OP_SET_CONTEXT){
+                    int pid_pedido;
+                    t_contexto nuevo_contexto;
+
+                    if(recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL) > 0 && recv(cliente_fd, &nuevo_contexto, sizeof(t_contexto), MSG_WAITALL) > 0){
+                        t_proceso_control* proceso_a_buscar = buscar_proceso_por_pid(pid_pedido);
+                        if(proceso_a_buscar != NULL){
+                            proceso_a_buscar->contexto = nuevo_contexto;
+
+                            uint32_t ok = 0;
+                            send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                            log_info(logger, "PID: %d Contexto actalizado (Mock OK)", pid_pedido);
+                        }
+                    }
+                } 
+                else{
+                    log_warning(logger, "Operacion desconocida de CPU");
                 }
                     break;
             }
@@ -294,25 +316,26 @@ void recibir_creacion_proceso(int socket_cliente){
     t_proceso_control* nuevo_proceso = malloc(sizeof(t_proceso_control)); 
     nuevo_proceso->pid = pid_recibido;
     nuevo_proceso->path_instrucciones = path_recibido;
-
     //inicializamos todos los registros en 0
-    nuevo_proceso->registros.pc = 0;
-    nuevo_proceso->registros.ax = 0;
-    nuevo_proceso->registros.bx = 0;
-    nuevo_proceso->registros.cx = 0;
-    nuevo_proceso->registros.dx = 0;
+    nuevo_proceso->contexto.pc = 0;
+    nuevo_proceso->contexto.ax = 0;
+    nuevo_proceso->contexto.bx = 0;
+    nuevo_proceso->contexto.cx = 0;
+    nuevo_proceso->contexto.dx = 0;
 
-    nuevo_proceso->registros.eax = 0;
-    nuevo_proceso->registros.ebx = 0;
-    nuevo_proceso->registros.ecx = 0;
-    nuevo_proceso->registros.edx = 0;
+    nuevo_proceso->contexto.eax = 0;
+    nuevo_proceso->contexto.ebx = 0;
+    nuevo_proceso->contexto.ecx = 0;
+    nuevo_proceso->contexto.edx = 0;
 
-    nuevo_proceso->registros.si = 0;
-    nuevo_proceso->registros.di = 0;
+    nuevo_proceso->contexto.si = 0;
+    nuevo_proceso->contexto.di = 0;
 
     //guardar el proceso creado en una lista global ya que esta fuera del main.c
     //guarda punteros a las estructuras de t_proceso_control declarado en el main.h
+    pthread_mutex_lock(&mutex_lista_procesos);
     list_add(procesos_activos, nuevo_proceso);
+    pthread_mutex_unlock(&mutex_lista_procesos);
 
     log_info(logger,"## PID: %d - Proceso Creado", pid_recibido);
 
@@ -320,10 +343,13 @@ void recibir_creacion_proceso(int socket_cliente){
 
 void terminar_programa(int server_fd, t_log* logger, t_config* config)
 {
-	/* Y por ultimo, hay que liberar lo que utilizamos (conexion, log y config) 
-	  con las funciones de las commons y del TP mencionadas en el enunciado */
         list_destroy_and_destroy_elements(procesos_activos, (void*)free);
+        pthread_mutex_destroy(&mutex_lista_procesos);
 		log_destroy(logger);
 		config_destroy(config);	  
 		close(server_fd);
+}
+
+uint32_t obtener_espacio_libre_mock() {
+    return 1024; // Valor fijo solicitado para el Check 2[cite: 1]
 }

@@ -35,6 +35,7 @@ typedef enum {
     OP_GET_INSTRUCCION = 1,
     OP_GET_CONTEXT     = 2,
     OP_SET_CONTEXT     = 3,
+    OP_GET_PROCESO     = 4, // necesita km 
 } t_operacion;
 
 typedef struct {
