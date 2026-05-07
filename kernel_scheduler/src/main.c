@@ -53,10 +53,13 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
     }
 	log_info(logger, "Servidor listo para recibir clientes");
-    manejar_clientes(server_fd);
 
     iniciar_planificador();
     iniciar_dispatcher();
+
+    manejar_clientes(server_fd);
+
+
     
     int pid = generar_pid();                                                                    
     t_pcb* pcb = crear_pcb(pid, proceso0_path, 0);

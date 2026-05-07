@@ -45,7 +45,8 @@ void* atender_cliente(void* arg) {
                 t_cpu* cpu = malloc(sizeof(t_cpu));                                     
                 cpu->fd = cliente_fd;                                                                
                 cpu->id = cpu_id;
-                cpu->libre = 1;                                                                      
+                cpu->libre = 1; 
+                cpu->pcb_actual = NULL;                                                              
                 pthread_mutex_lock(&mutex_cpus);
                 list_add(lista_cpus, cpu);                                                         
                 pthread_mutex_unlock(&mutex_cpus);
