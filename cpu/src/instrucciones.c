@@ -1,7 +1,7 @@
 #include "main.h"
 
 uint32_t get_registro(t_contexto* ctx, char* nombre){
-     if (strcmp(nombre, "AX") == 0)  return ctx->ax;
+    if (strcmp(nombre, "AX") == 0)  return ctx->ax;
     if (strcmp(nombre, "BX") == 0)  return ctx->bx;
     if (strcmp(nombre, "CX") == 0)  return ctx->cx;
     if (strcmp(nombre, "DX") == 0)  return ctx->dx;
@@ -29,14 +29,14 @@ void set_registro(t_contexto* ctx, char* nombre, uint32_t valor){
     if (strcmp(nombre, "PC") == 0)  { ctx->pc  = valor;            return; }
 }
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid,
-             int* tipo_io_out, int* param_io_out){ //instrucciones que no usan mmu
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out){ //instrucciones que no usan mmu
     
     char nombre[32] = {0};
     char arg1[32]   = {0};
     char arg2[32]   = {0};
     sscanf(instruccion, "%s %s %s", nombre, arg1, arg2);
 
+    //LOG OOBLIGATORIO
     log_info(logger, "## PID: %d - Ejecutando: %s - %s %s", pid, nombre, arg1, arg2);
     
     //NOOP
@@ -100,20 +100,20 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid,
         *tipo_io_out  = IO_SLEEP;
         *param_io_out = atoi(arg1);
         return SYSCALL;
-}
+    }
 
     //STDOUT
     if (strcmp(nombre, "STDOUT") == 0) {
         *tipo_io_out  = IO_STDOUT;
         *param_io_out = 0; // Check 3 define qué mandar
         return SYSCALL;
-}
+    }
     //STDIN
     if (strcmp(nombre, "STDIN") == 0) {
         *tipo_io_out  = IO_STDIN;
         *param_io_out = 0;
         return SYSCALL;
-}
+    }
 
     //SYSCALLS NO IMPLEMENTADAS
     if (strcmp(nombre, "MUTEX_CREATE") == 0 ||
@@ -121,10 +121,10 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid,
         strcmp(nombre, "MUTEX_UNLOCK")   == 0 || 
         strcmp(nombre, "MEM_ALLOC")   == 0 || 
         strcmp(nombre, "MEM_FREE")   == 0 || 
-        strcmp(nombre, "INIT_PROC")   == 0 || ){
+        strcmp(nombre, "INIT_PROC")   == 0){
         log_warning(logger, "Syscall no implementada aun: %s", nombre);
         return SYSCALL;
     }
-
+    return SYSCALL;
 }
 
