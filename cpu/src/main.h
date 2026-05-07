@@ -31,10 +31,18 @@ typedef struct {
 
 void cargar_informacion_configuracion(t_config* config, t_config_valores* valores, t_log* logger); //Recibe la config, lo mete en el struct y lo loguea 
 
+t_contexto pedir_contexto(int fd_km, int pid, t_log* logger);
+void guardar_contexto(int fd_km, int pid, t_contexto* ctx, t_log* logger);
+
+void devolver_a_ks(int fd_ks, int pid, int resultado, t_contexto* ctx, int tipo_io, int param_io, t_log* logger);
+
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out);
+
 char* fetch(int fd_km, int pid, uint32_t pc, t_log* logger);
+
 
 uint32_t get_registro(t_contexto* ctx, char* nombre);
 void set_registro(t_contexto* ctx, char* nombre, uint32_t valor);
-int ejecutar(char* instruccion, t_contexto* ctx, int fd_ks, t_log* logger, int pid);
+
 
 #endif
