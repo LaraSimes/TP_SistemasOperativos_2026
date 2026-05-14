@@ -161,12 +161,12 @@ void manejar_cpu(int cliente_fd) {
         return;
     }
 
+    int ok = 0;
+    send(cliente_fd, &ok, sizeof(int), 0);
+
     recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
 
     log_info(logger, "## CPU %d Conectada", cpu_id);
 
-    int ok = 0;
-    send(cliente_fd, &ok, sizeof(int), 0);
-
-    close(cliente_fd);
+    
 }
