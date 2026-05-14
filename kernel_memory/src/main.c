@@ -21,17 +21,17 @@ int main(int argc, char* argv[])
 
     logger=iniciar_logger(MOD_KERNEL_MEMORY,nivel_log);
 
-    log_info(logger, "Estoy escuchando en el puerto de: %s", config_memoria.puerto_escucha); //ejemplo
-
     int server_fd=iniciar_servidor(config_memoria.puerto_escucha); // donde se inicia el servidor
-
-    procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
-    pthread_mutex_init(&mutex_lista_procesos, NULL);
 
     if(server_fd==-1){
         log_error(logger, "Fallo al iniciar el servidor"); //analizamos si falla el sv
         return -1;
     }
+
+    log_info(logger, "Estoy escuchando en el puerto: %s", config_memoria.puerto_escucha); //ejemplo
+
+    procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
+    pthread_mutex_init(&mutex_lista_procesos, NULL);
 
     while(true){ //logica de esperar clientes
         int cliente_fd=esperar_cliente(server_fd);
@@ -181,6 +181,11 @@ void* manejar_cliente(void* arg) {
         
         case MOD_CPU:
             recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
+            if (bytes <= 0) {
+                log_error(logger, "Error recibiendo ID de CPU");
+                close(cliente_fd);
+                return NULL;
+            }
             log_info(logger, "## CPU %d Conectada", cpu_id);
             break;
         
@@ -249,10 +254,12 @@ void* manejar_cliente(void* arg) {
                             free (instruccion_texto);
                         } else{
                             log_error(logger, "No se encontro la instruccion para el PC %d", pc_pedido);
+                            send(cliente_fd, &(int){-1}, sizeof(int), 0); //envio -1 para indicar que no se encontro la instruccion
                         }
                     
                     } else{
                         log_error(logger, "Nose encontro el PID %d en la memoria", pid_pedido);
+                        send(cliente_fd, &(int){-1}, sizeof(int), 0); //envio -1 para indicar que no se encontro el proceso
                     }   
                 } 
                 else if (cod_op == OP_GET_CONTEXT){ 
