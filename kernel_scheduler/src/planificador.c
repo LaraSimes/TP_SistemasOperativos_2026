@@ -9,13 +9,14 @@ t_queue* cola_block;
 // Listas globales
 t_list* lista_cpus;
 t_list* lista_ios;
+t_list* lista_mutex;
 
 // Mutex
 pthread_mutex_t mutex_ready  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_block  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cpus   = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ios    = PTHREAD_MUTEX_INITIALIZER;
-
+pthread_mutex_t mutex_mutex  = PTHREAD_MUTEX_INITIALIZER;
 
 // PID autoincremental
 static int siguiente_pid = 0;
@@ -27,6 +28,7 @@ void iniciar_planificador() { // Crea todas las colas y listas vacías al arranc
     cola_block = queue_create();
     lista_cpus = list_create();
     lista_ios  = list_create();
+    lista_mutex = list_create();
 }
 
 t_pcb* crear_pcb(int pid, char* path, int prioridad) {
@@ -39,6 +41,22 @@ t_pcb* crear_pcb(int pid, char* path, int prioridad) {
     memset(&pcb->contexto, 0, sizeof(t_contexto));
     return pcb;
 }
+
+void crear_proceso_inicial(char* path) {                                           
+      static int creado = 0;                                                         
+      static pthread_mutex_t mutex_init = PTHREAD_MUTEX_INITIALIZER;                 
+                                                                                   
+      pthread_mutex_lock(&mutex_init);                                               
+      if (!creado) {                  
+          creado = 1;                                                                
+          pthread_mutex_unlock(&mutex_init);
+          int pid = generar_pid();                                                 
+          t_pcb* pcb = crear_pcb(pid, path, 0);                                      
+          encolar_ready(pcb);                  
+      } else {                                                                       
+          pthread_mutex_unlock(&mutex_init);
+      }                                                                              
+  }
 
 int generar_pid() { // PID: Procces ID
     pthread_mutex_lock(&mutex_pid);
@@ -150,3 +168,42 @@ t_io_registrada* buscar_io_por_fd(int fd){
         pthread_mutex_unlock(&mutex_ios);
         return encontrada;
 }
+
+t_io_registrada* buscar_io_por_tipo(t_tipo_io tipo) {
+    pthread_mutex_lock(&mutex_ios);
+    t_io_registrada* encontrada = NULL;
+    for (int i = 0; i < list_size(lista_ios); i++) {
+        t_io_registrada* io = list_get(lista_ios, i);
+        if (io->tipo == tipo) {
+            encontrada = io;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_ios);
+    return encontrada;
+  }
+
+t_mutex* buscar_mutex(char* nombre) {                                              
+    pthread_mutex_lock(&mutex_mutex);
+    t_mutex* encontrado = NULL;                                                    
+    for (int i = 0; i < list_size(lista_mutex); i++) {                             
+        t_mutex* m = list_get(lista_mutex, i);                                   
+        if (strcmp(m->nombre, nombre) == 0) {                                      
+            encontrado = m;                                                        
+            break;                                                               
+        }                                                                          
+    }           
+    pthread_mutex_unlock(&mutex_mutex);                                          
+    return encontrado;                 
+  }                                                                                  
+   
+t_mutex* crear_mutex(char* nombre) {                                               
+    t_mutex* m = malloc(sizeof(t_mutex));
+    m->nombre = strdup(nombre);                                                  
+    m->owner_pid = -1;         
+    m->cola_espera = queue_create();                                               
+    pthread_mutex_lock(&mutex_mutex);
+    list_add(lista_mutex, m);                                                      
+    pthread_mutex_unlock(&mutex_mutex);
+    return m;                                                                      
+} 

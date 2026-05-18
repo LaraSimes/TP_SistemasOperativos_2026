@@ -36,22 +36,33 @@ typedef struct {
     int id;
     int libre;   // 1 = libre, 0 = ocupada
     t_pcb* pcb_actual;
+    bool interrupcion_pendiente;
 } t_cpu;
+
+// MUTEX
+typedef struct {
+    char* nombre;
+    int owner_pid;
+    t_queue* cola_espera;
+} t_mutex;
 
 // Colas globales
 extern t_queue* cola_new;
 extern t_queue* cola_ready;
 extern t_queue* cola_block;
 
-// Lista de CPUs e IOs conectadas
+// Listas Globales
 extern t_list* lista_cpus;
 extern t_list* lista_ios;
+extern t_list* lista_mutex;
+
 
 // Mutex para proteger las colas
 extern pthread_mutex_t mutex_ready;
 extern pthread_mutex_t mutex_block;
 extern pthread_mutex_t mutex_cpus;
 extern pthread_mutex_t mutex_ios;
+extern pthread_mutex_t mutex_mutex;
 
 // Funciones
 t_pcb* crear_pcb(int pid, char* path, int prioridad);
@@ -66,6 +77,7 @@ typedef struct {
     t_tipo_io tipo;
     int libre;
     int pid_actual;
+    t_queue* cola_espera;
 } t_io_registrada;
 
 void iniciar_planificador();
@@ -75,5 +87,10 @@ void encolar_block(t_pcb* pcb);
 t_io_registrada* buscar_io(t_tipo_io tipo);
 t_cpu* buscar_cpu_por_fd(int fd);
 t_io_registrada* buscar_io_por_fd(int fd);
+void crear_proceso_inicial(char* path);
+t_io_registrada* buscar_io_por_tipo(t_tipo_io tipo);
+t_mutex* buscar_mutex(char* nombre);
+t_mutex* crear_mutex(char* nombre);
+
 
 #endif

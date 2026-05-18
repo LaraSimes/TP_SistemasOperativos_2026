@@ -1,6 +1,12 @@
 #include "dispatcher.h"
+#include "main.h"
 
 extern t_log* logger;
+
+typedef struct {
+    t_cpu* cpu;                                                                    
+} t_args_quantum;
+
 
 // Semaforo para despertar al despachador
 sem_t sem_dispatcher;
@@ -37,8 +43,17 @@ void* dispatcher_thread(void* arg) {
         if (send(cpu->fd, &pcb->pid, sizeof(int), 0) == -1) {
             log_error(logger, "Error enviando PID a CPU");
         }
+
         cpu->pcb_actual = pcb;
 
+        if (strcmp(planification_algorithm, "RR") == 0) {
+                cpu->interrupcion_pendiente = true;
+                t_args_quantum* args = malloc(sizeof(t_args_quantum));
+                args->cpu = cpu;
+                pthread_t hilo;
+                pthread_create(&hilo, NULL, thread_quantum, args);
+                pthread_detach(hilo);
+        }
     }
     return NULL;
 }
@@ -46,3 +61,22 @@ void* dispatcher_thread(void* arg) {
 void wake_dispatcher() {
     sem_post(&sem_dispatcher);
 }
+
+void* thread_quantum(void* arg) {                                                  
+    t_args_quantum* args = arg;
+    t_cpu* cpu = args->cpu;                                                        
+    free(args); 
+                                                                                   
+    usleep(rr_quantum * 1000);  // rr_quantum en ms → usleep en μs                 
+   
+    pthread_mutex_lock(&mutex_cpus);                                               
+    if (cpu->interrupcion_pendiente) {
+        int interrupcion = 1;                                                      
+        send(cpu->fd, &interrupcion, sizeof(int), 0);
+        cpu->interrupcion_pendiente = false;                                            
+    }                                                                              
+    pthread_mutex_unlock(&mutex_cpus);                                           
+                                                                                     
+    return NULL;
+}                                                                                
+

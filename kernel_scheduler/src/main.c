@@ -8,6 +8,9 @@
     static char* puerto_escucha;
     t_log* logger;
 
+    char* planification_algorithm;                                                     
+    int rr_quantum;               
+    int suspension_timeout; 
 
 int main(int argc, char* argv[]) {  
 
@@ -57,13 +60,7 @@ int main(int argc, char* argv[]) {
     iniciar_planificador();
     iniciar_dispatcher();
 
-    manejar_clientes(server_fd);
-
-
-    
-    int pid = generar_pid();                                                                    
-    t_pcb* pcb = crear_pcb(pid, proceso0_path, 0);
-    encolar_ready(pcb);   
+    manejar_clientes(server_fd, proceso0_path);
 
     return 0;
 }
@@ -75,5 +72,9 @@ void obtener_configuracion(t_config* config){
 	ip_memoria = obtener_string("IP_MEMORIA", config);
     puerto_memoria = obtener_string("PUERTO_MEMORIA", config);
     puerto_escucha = obtener_string("PUERTO_ESCUCHA", config);
+    planification_algorithm = config_get_string_value(config, "PLANIFICATION_ALGORITHM");                              
+    rr_quantum = config_get_int_value(config, "RR_QUANTUM");                           
+    suspension_timeout = config_get_int_value(config, "SUSPENSION_TIMEOUT");
+
     return;
 }

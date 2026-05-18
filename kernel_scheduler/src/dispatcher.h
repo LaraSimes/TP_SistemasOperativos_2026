@@ -10,5 +10,5 @@ extern sem_t sem_dispatcher;
 void iniciar_dispatcher();
 void* dispatcher_thread(void* arg);
 void wake_dispatcher();
-
+void* thread_quantum(void* arg);
 #endif

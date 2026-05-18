@@ -18,5 +18,8 @@
 
 void obtener_configuracion();
 
+extern char* planification_algorithm;
+extern int rr_quantum;                                                             
+extern int suspension_timeout;
 
 #endif /* CLIENT_H_ */

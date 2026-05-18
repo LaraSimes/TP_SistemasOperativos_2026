@@ -12,7 +12,7 @@
 #include "utils/general.h"
 #include "planificador.h"
 
-void manejar_clientes(int server_fd);
+void manejar_clientes(int server_fd, char* proceso0_path);
 void* atender_cliente(void* arg);
 int recibir_operacion(int socket_cliente);
 

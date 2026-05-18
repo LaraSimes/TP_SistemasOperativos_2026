@@ -59,6 +59,19 @@ typedef enum {
     SEG_FAULT    = 3,
 } t_resultado_ciclo;
 
+typedef enum {
+    SYSCALL_IO_SLEEP     = 0,
+    SYSCALL_IO_STDIN     = 1,
+    SYSCALL_IO_STDOUT    = 2,
+    SYSCALL_MUTEX_CREATE = 3,
+    SYSCALL_MUTEX_LOCK   = 4,
+    SYSCALL_MUTEX_UNLOCK = 5,
+    SYSCALL_MEM_ALLOC    = 6,
+    SYSCALL_MEM_FREE     = 7,
+    SYSCALL_INIT_PROC    = 8,
+} t_tipo_syscall;
+
+
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);
 t_config* iniciar_config(char* path);
 
