@@ -10,7 +10,10 @@
 
     char* planification_algorithm;                                                     
     int rr_quantum;               
-    int suspension_timeout; 
+    int suspension_timeout;
+
+    int fd_km;
+    pthread_mutex_t mutex_km = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char* argv[]) {  
 
@@ -24,7 +27,6 @@ int main(int argc, char* argv[]) {
 
     t_config* config;
 
-    int conexion;
     int server_fd;
 
     config = iniciar_config(config_path);
@@ -38,15 +40,15 @@ int main(int argc, char* argv[]) {
     log_info(logger, "log level: %s", log_level_str); 
 
     // Conexion a Memoria
-    conexion = crear_cliente(ip_memoria, puerto_memoria);
-    if (conexion == -1) {
+    fd_km = crear_cliente(ip_memoria, puerto_memoria);
+    if (fd_km == -1) {
         log_error(logger, "No se pudo conectar a memoria");
         return EXIT_FAILURE;
     }
     // Handshake con Memoria
-    if (!handshake(conexion, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
+    if (!handshake(fd_km, logger, MOD_KERNEL_SCHEDULER, MOD_KERNEL_MEMORY)) {
         log_error(logger, "Fallo el handshake con memoria");
-        close(conexion);
+        close(fd_km);
         return EXIT_FAILURE;
     }
     // Levanta servidor multihilos

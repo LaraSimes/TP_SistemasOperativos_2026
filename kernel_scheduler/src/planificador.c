@@ -56,7 +56,7 @@ void crear_proceso_inicial(char* path) {
       } else {                                                                       
           pthread_mutex_unlock(&mutex_init);
       }                                                                              
-  }
+}
 
 int generar_pid() { // PID: Procces ID
     pthread_mutex_lock(&mutex_pid);

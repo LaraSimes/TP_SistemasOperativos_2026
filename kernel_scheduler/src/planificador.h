@@ -27,7 +27,8 @@ typedef struct {
     char* path_instrucciones;
     // IO pendiente
     t_tipo_io tipo_io_pendiente;
-    int param_io;          // ms para SLEEP, cantidad para STDIN/STDOUT
+    int param_io;           // ms para SLEEP, cantidad para STDIN/STDOUT
+    uint32_t dir_logica;    // dirección lógica para STDIN/STDOUT
 } t_pcb;
 
 // CPU registrada

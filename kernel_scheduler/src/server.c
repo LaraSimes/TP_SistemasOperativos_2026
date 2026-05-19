@@ -6,13 +6,16 @@ extern t_list* lista_ios;
 extern pthread_mutex_t mutex_cpus;
 extern pthread_mutex_t mutex_ios;
 extern pthread_mutex_t mutex_mutex;
+extern int fd_km;                                                                  
+extern pthread_mutex_t mutex_km;
 
-typedef struct {                                                                   
+
+typedef struct {     // struct para la 1er cpu                                                              
       int fd;
       char* proceso0_path;                                                           
   } t_cliente_args;        
                                                                                    
-void manejar_clientes(int server_fd, char* proceso0_path) {
+void manejar_clientes(int server_fd, char* proceso0_path) { // recibe el path para asignarselo a la 1er cpu.
     while (1) {                                                                    
         int cliente_fd = esperar_cliente(server_fd);
         if (cliente_fd == -1) continue;                                            
@@ -26,6 +29,35 @@ void manejar_clientes(int server_fd, char* proceso0_path) {
         pthread_detach(hilo);                                                      
     }                        
 } 
+
+void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {                          
+    send(io->fd, &pcb->pid, sizeof(int), 0);
+                                                                                     
+    if (io->tipo == IO_SLEEP) {                                                    
+        send(io->fd, &pcb->param_io, sizeof(int), 0);                              
+                                                                                     
+    } else if (io->tipo == IO_STDIN) {                                           
+        send(io->fd, &pcb->param_io, sizeof(int), 0);                              
+                  
+    } else if (io->tipo == IO_STDOUT) {                                            
+        int tamanio = pcb->param_io;
+        char* buffer = calloc(tamanio + 1, 1);                                     
+                                                                                     
+        pthread_mutex_lock(&mutex_km);                                           
+        t_operacion op = OP_READ_MEM;                                              
+        send(fd_km, &op, sizeof(t_operacion), 0);                                  
+        send(fd_km, &pcb->pid, sizeof(int), 0);                                    
+        send(fd_km, &pcb->dir_logica, sizeof(uint32_t), 0);                        
+        send(fd_km, &tamanio, sizeof(int), 0);                                     
+        uint32_t ok_km;                                                          
+        recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);                        
+        pthread_mutex_unlock(&mutex_km);
+                                                                                     
+        send(io->fd, &tamanio, sizeof(int), 0);
+        send(io->fd, buffer, tamanio, 0);                                          
+        free(buffer);                                                              
+    }                                                                            
+}
 
 void* atender_cliente(void* arg) {
     t_cliente_args* args = (t_cliente_args*)arg;                                 
@@ -128,39 +160,48 @@ void* atender_cliente(void* arg) {
                 case SYSCALL: {                                                                                               
                     int tipo_syscall;                                                                                                                                                      
                     recv(cliente_fd, &tipo_syscall, sizeof(int), MSG_WAITALL);                                                                                                             
-                                                                                                                                                                                            
-                    if (tipo_syscall <= SYSCALL_IO_STDOUT) {                                                                                                                               
-                        int param_io;                                                                                                                                                      
-                        recv(cliente_fd, &param_io, sizeof(int), MSG_WAITALL);                                                                                                             
 
-                        char* nombre_io;                                                                   
-                        switch (tipo_syscall) {
-                            case SYSCALL_IO_SLEEP:  nombre_io = "SLEEP";  break;                           
-                            case SYSCALL_IO_STDIN:  nombre_io = "STDIN";  break;                           
-                            default:                nombre_io = "STDOUT"; break;                         
-                        }                                                                                  
-                        log_info(logger, "## (%d) - Solicitó syscall: %s", pcb->pid, nombre_io);
-
-
-                        pcb->tipo_io_pendiente = tipo_syscall;                                                                                                                             
-                        pcb->param_io = param_io;
-                        encolar_block(pcb);                                                                                                                                                
-                                                                                                                                                                                            
-                        t_io_registrada* io = buscar_io_por_tipo(tipo_syscall);
-                        if (io != NULL) {                                                                                                                                                  
-                            pthread_mutex_lock(&mutex_ios);                                                                                                                              
-                            if (io->libre) {                                                                                                                                               
-                                io->libre = 0;
-                                io->pid_actual = pcb->pid;                                                                                                                                 
-                                pthread_mutex_unlock(&mutex_ios);                                                                                                                        
-                                send(io->fd, &pcb->pid, sizeof(int), 0);
-                                send(io->fd, &param_io, sizeof(int), 0);                                                                                                                   
-                            } else {
-                                queue_push(io->cola_espera, pcb);                                                                                                                          
-                                pthread_mutex_unlock(&mutex_ios);                                                                                                                          
-                            }
-                        }                                                                                                                                                                  
-                    } else {                                                                                                                                                             
+                    if (tipo_syscall <= SYSCALL_IO_STDOUT) {                                           
+                        char* nombre_io;                                                               
+                        switch (tipo_syscall) {             
+                            case SYSCALL_IO_SLEEP:  nombre_io = "SLEEP";  break;                       
+                            case SYSCALL_IO_STDIN:  nombre_io = "STDIN";  break;                       
+                            default:                nombre_io = "STDOUT"; break;                     
+                        }                                                                              
+                        log_info(logger, "## (%d) - Solicitó syscall: %s", pcb->pid, nombre_io);       
+                                                                                                        
+                        if (tipo_syscall == SYSCALL_IO_SLEEP) {                                        
+                            int ms;                                                                    
+                            recv(cliente_fd, &ms, sizeof(int), MSG_WAITALL);                           
+                            pcb->param_io = ms;                                                        
+                            pcb->dir_logica = 0;                                                       
+                        } else {                                                                       
+                            uint32_t dir_logica;                                                       
+                            int tamanio;                                                             
+                            recv(cliente_fd, &dir_logica, sizeof(uint32_t), MSG_WAITALL);              
+                            recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
+                            pcb->dir_logica = dir_logica;                                              
+                            pcb->param_io = tamanio;        
+                        }                                                                              
+                                                                                                        
+                        pcb->tipo_io_pendiente = tipo_syscall;                                       
+                        encolar_block(pcb);                                                            
+                                                                
+                        t_io_registrada* io = buscar_io_por_tipo(tipo_syscall);                        
+                        if (io != NULL) {
+                            pthread_mutex_lock(&mutex_ios);                                            
+                            if (io->libre) {                    
+                                io->libre = 0;                                                         
+                                io->pid_actual = pcb->pid;
+                                pthread_mutex_unlock(&mutex_ios);                                      
+                                enviar_trabajo_io(io, pcb); 
+                            } else {                                                                   
+                                queue_push(io->cola_espera, pcb);                                      
+                                pthread_mutex_unlock(&mutex_ios);                                    
+                            }                                                                          
+                        }                                                                              
+                    }                                                                                                                                                                       
+                     else {                                                                                                                                                             
                         char nombre[32];
                         recv(cliente_fd, nombre, 32, MSG_WAITALL);                                                                                                                         
                 
@@ -220,31 +261,71 @@ void* atender_cliente(void* arg) {
               }                                         
             wake_dispatcher();                                                     
         }                  
-        else if(id == MOD_IO){ 
-            t_io_registrada* io = buscar_io_por_fd(cliente_fd);  
-            int pid = io->pid_actual; 
-            
-            pthread_mutex_lock(&mutex_ios);                                                    
-            t_pcb* siguiente = queue_pop(io->cola_espera);
-            if (siguiente != NULL) {                                                         
-                // Hay alguien esperando → asignarlo directamente sin liberar el IO
-                io->pid_actual = siguiente->pid;                                               
-                pthread_mutex_unlock(&mutex_ios);                                              
-                send(io->fd, &siguiente->pid, sizeof(int), 0);                                 
-                send(io->fd, &siguiente->param_io, sizeof(int), 0);                            
-            } else {                                                                           
-                // Nadie esperando → liberar el IO                                           
-                io->libre = 1;                                                                 
-                io->pid_actual = -1;
-                pthread_mutex_unlock(&mutex_ios);                                              
+        else if (id == MOD_IO) { // Cuando un IO termino su trabajo
+            t_io_registrada* io = buscar_io_por_fd(cliente_fd);
+            int pid = io->pid_actual;
+
+            if (io->tipo == IO_STDIN) {
+                int tamanio = resultado;
+                char* buffer = malloc(tamanio + 1);
+                buffer[tamanio] = '\0';
+                recv(cliente_fd, buffer, tamanio, MSG_WAITALL);
+                int ok;
+                recv(cliente_fd, &ok, sizeof(int), MSG_WAITALL);
+
+                t_pcb* pcb_stdin = buscar_en_block(pid);
+
+                if (pcb_stdin != NULL) {
+                    pthread_mutex_lock(&mutex_km);
+                    t_operacion op = OP_WRITE_MEM;
+                    send(fd_km, &op, sizeof(t_operacion), 0);
+                    send(fd_km, &pid, sizeof(int), 0);
+                    send(fd_km, &pcb_stdin->dir_logica, sizeof(uint32_t), 0);
+                    send(fd_km, &tamanio, sizeof(int), 0);
+                    send(fd_km, buffer, tamanio, 0);
+                    uint32_t ok_km;
+                    recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);
+                    pthread_mutex_unlock(&mutex_km);
+                }
+                free(buffer);
+
+                pthread_mutex_lock(&mutex_ios);
+                t_pcb* siguiente = queue_pop(io->cola_espera);
+                if (siguiente != NULL) {
+                    io->pid_actual = siguiente->pid;
+                    pthread_mutex_unlock(&mutex_ios);
+                    enviar_trabajo_io(io, siguiente);
+                } else {
+                    io->libre = 1;
+                    io->pid_actual = -1;
+                    pthread_mutex_unlock(&mutex_ios);
+                }
+
+                if (pcb_stdin != NULL) {
+                    log_info(logger, "## (%d) finalizó IO y pasa a READY / SUSP. READY", pcb_stdin->pid);
+                    encolar_ready(pcb_stdin);
+                }
+
+            } else { // STDOUT y SLEEP
+                pthread_mutex_lock(&mutex_ios);
+                t_pcb* siguiente = queue_pop(io->cola_espera);
+                if (siguiente != NULL) {
+                    io->pid_actual = siguiente->pid;
+                    pthread_mutex_unlock(&mutex_ios);
+                    enviar_trabajo_io(io, siguiente);
+                } else {
+                    io->libre = 1;
+                    io->pid_actual = -1;
+                    pthread_mutex_unlock(&mutex_ios);
+                }
+
+                t_pcb* pcb = buscar_en_block(pid);
+                if (pcb != NULL) {
+                    log_info(logger, "## (%d) finalizó IO y pasa a READY / SUSP. READY", pcb->pid);
+                    encolar_ready(pcb);
+                }
             }
-                                                                                                
-            // En ambos casos, despertar al proceso que terminó IO
-            t_pcb* pcb = buscar_en_block(pid);                                               
-            if (pcb != NULL) {  
-                log_info(logger, "## (%d) finalizó IO y pasa a READY / SUSP. READY", pcb->pid);                                                                
-                encolar_ready(pcb);
-            }              
+            wake_dispatcher();
         }
     }
 }

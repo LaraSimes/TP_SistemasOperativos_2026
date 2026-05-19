@@ -73,6 +73,7 @@ int main(int argc, char* argv[]) {
                 fgets(linea, sizeof(linea), stdin);
                 linea[strcspn(linea, "\n")] = '\0';
                 strncpy(buffer, linea, cantidad);
+                send(conexion, &cantidad, sizeof(int), 0);
                 send(conexion, buffer, cantidad, 0);
                 int ok = 1;
                 send(conexion, &ok, sizeof(int), 0);

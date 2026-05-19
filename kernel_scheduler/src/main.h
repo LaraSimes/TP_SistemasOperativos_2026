@@ -21,5 +21,7 @@ void obtener_configuracion();
 extern char* planification_algorithm;
 extern int rr_quantum;                                                             
 extern int suspension_timeout;
+extern int fd_km;                                                                  
+extern pthread_mutex_t mutex_km;
 
 #endif /* CLIENT_H_ */
