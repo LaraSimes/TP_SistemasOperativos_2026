@@ -13,6 +13,7 @@
 #include <string.h>
 #include <pthread.h> 
 #include "utils/general.h"
+#include <stdint.h>
 
 typedef struct{
     char* log_level;
@@ -46,5 +47,9 @@ bool _es_el_proceso(void* elemento);
 extern t_list* procesos_activos;
 
 pthread_mutex_t mutex_lista_procesos;
+
+void recibir_datos_memoria_mock(int socket, int* pid, uint32_t* dir, int* tam);
+
+uint32_t obtener_espacio_libre_mock();
 
 #endif

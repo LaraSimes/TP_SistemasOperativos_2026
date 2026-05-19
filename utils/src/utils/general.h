@@ -36,6 +36,11 @@ typedef enum {
     OP_GET_CONTEXT     = 2,
     OP_SET_CONTEXT     = 3,
     OP_GET_PROCESO     = 4, // necesita km 
+    OP_GET_FREE_SPACE  = 5, // para que el ks pregunta cuanto espacio tiene km
+    OP_MEM_ALLOC       = 6, // para que el ks pida crear un segmento (km)
+    OP_MEM_FREE        = 7, // para que el ks pida liberar segmento (km)
+    OP_READ_MEM        = 8, // para que cpu simle lectura de datos y contestar ok (km)
+    OP_WRITE_MEM        = 9, // para que cpu smile escritura y contestar ok (km)
 } t_operacion;
 
 typedef struct {

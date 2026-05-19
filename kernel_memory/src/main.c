@@ -221,6 +221,24 @@ void* manejar_cliente(void* arg) {
                 if(cod_op==OP_GET_PROCESO){
                     recibir_creacion_proceso(cliente_fd);
                 }
+                else if(cod_op == OP_GET_FREE_SPACE){
+                    uint32_t espacio = obtener_espacio_libre_mock();
+                    send(cliente_fd, &espacio, sizeof(uint32_t), 0);
+                    log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes", espacio);
+                }
+                else if (cod_op == OP_MEM_ALLOC) {
+                    int pid, tamanio;
+                    uint32_t id_segmento;
+                    recibir_datos_memoria_mock(cliente_fd, &pid, &id_segmento, &tamanio);
+                    log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d", pid, id_segmento, tamanio);
+        
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                }
+                else if(cod_op == OP_MEM_FREE){
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                }
                 break;
             }
 
@@ -289,7 +307,33 @@ void* manejar_cliente(void* arg) {
                             log_info(logger, "PID: %d Contexto actalizado (Mock OK)", pid_pedido);
                         }
                     }
-                } 
+                }
+                else if(cod_op == OP_READ_MEM){
+                    int pid;
+                    uint32_t dir;
+                    int tam;
+
+                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
+
+                    log_info(logger,"## PID: %d - Lectura - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
+
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                }
+                else if(cod_op == OP_WRITE_MEM){
+                    int pid; 
+                    uint32_t dir; 
+                    int tam;
+
+                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
+
+                    log_info(logger, "## PID: %d - Escritura - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
+
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                }
+
+
                 else{
                     log_warning(logger, "Operacion desconocida de CPU");
                 }
@@ -359,4 +403,10 @@ void terminar_programa(int server_fd, t_log* logger, t_config* config)
 
 uint32_t obtener_espacio_libre_mock() {
     return 1024; // Valor fijo solicitado para el Check 2[cite: 1]
+}
+
+void recibir_datos_memoria_mock(int socket, int* pid, uint32_t* dir, int* tam) {
+    recv(socket, pid, sizeof(int), MSG_WAITALL);
+    recv(socket, dir, sizeof(uint32_t), MSG_WAITALL);
+    recv(socket, tam, sizeof(int), MSG_WAITALL);
 }
