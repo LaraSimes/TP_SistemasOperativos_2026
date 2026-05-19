@@ -80,3 +80,13 @@ void obtener_configuracion(t_config* config){
 
     return;
 }
+void registrar_proceso_en_km(int pid, char* path) {                                
+    int op = OP_GET_PROCESO;                                                       
+    int tam_path = strlen(path) + 1;                                               
+    pthread_mutex_lock(&mutex_km);                                                 
+    send(fd_km, &op,       sizeof(int), 0);                                        
+    send(fd_km, &pid,      sizeof(int), 0);                                        
+    send(fd_km, &tam_path, sizeof(int), 0);                                        
+    send(fd_km, path,      tam_path,    0);                                        
+    pthread_mutex_unlock(&mutex_km);                                               
+}

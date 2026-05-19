@@ -17,6 +17,7 @@
 #include "dispatcher.h"
 
 void obtener_configuracion();
+void registrar_proceso_en_km(int pid, char* path);   
 
 extern char* planification_algorithm;
 extern int rr_quantum;                                                             

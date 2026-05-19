@@ -1,5 +1,7 @@
 #include "planificador.h"
+
 extern t_log* logger;
+extern void registrar_proceso_en_km(int pid, char* path);
 
 // Colas globales
 t_queue* cola_new;
@@ -51,7 +53,8 @@ void crear_proceso_inicial(char* path) {
           creado = 1;                                                                
           pthread_mutex_unlock(&mutex_init);
           int pid = generar_pid();                                                 
-          t_pcb* pcb = crear_pcb(pid, path, 0);                                      
+          t_pcb* pcb = crear_pcb(pid, path, 0);   
+          registrar_proceso_en_km(pid, path);                                   
           encolar_ready(pcb);                  
       } else {                                                                       
           pthread_mutex_unlock(&mutex_init);
