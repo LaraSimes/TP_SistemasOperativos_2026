@@ -87,6 +87,8 @@ void registrar_proceso_en_km(int pid, char* path) {
     send(fd_km, &op,       sizeof(int), 0);                                        
     send(fd_km, &pid,      sizeof(int), 0);                                        
     send(fd_km, &tam_path, sizeof(int), 0);                                        
-    send(fd_km, path,      tam_path,    0);                                        
+    send(fd_km, path,      tam_path,    0);    
+    int ok;                                                                            
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);                                   
     pthread_mutex_unlock(&mutex_km);                                               
 }

@@ -387,7 +387,8 @@ void recibir_creacion_proceso(int socket_cliente){
     pthread_mutex_lock(&mutex_lista_procesos);
     list_add(procesos_activos, nuevo_proceso);
     pthread_mutex_unlock(&mutex_lista_procesos);
-
+    int ok = 0;
+    send(socket_cliente, &ok, sizeof(int), 0);
     log_info(logger,"## PID: %d - Proceso Creado", pid_recibido);
 
 }

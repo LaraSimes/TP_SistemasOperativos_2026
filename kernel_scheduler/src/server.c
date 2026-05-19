@@ -136,6 +136,12 @@ void* atender_cliente(void* arg) {
             t_cpu* cpu = buscar_cpu_por_fd(cliente_fd);                                                                   
             t_pcb* pcb = cpu->pcb_actual;
 
+            if (pcb == NULL) { // Defensivo: CPU puede mandar resultados extra tras EXIT mientras no esté implementado el corte correcto de su lado 
+                log_error(logger, "## CPU %d: resultado recibido sin PCB asignado, ignorando", cpu->id);       
+                wake_dispatcher();                                                           
+                continue;
+            }    
+
             // Paso 3 — actualizar el contexto en el PCB:                                                                  
             pcb->contexto = contexto;                                                                                     
                                     
@@ -144,7 +150,8 @@ void* atender_cliente(void* arg) {
             cpu->interrupcion_pendiente = false;                                                                                          
             cpu->libre = 1;                 
             cpu->pcb_actual = NULL;    
-            pthread_mutex_unlock(&mutex_cpus);                                                                          
+            pthread_mutex_unlock(&mutex_cpus);         
+
                                                 
             // Paso 5 — switch según resultado
             switch(resultado) {                                                                                           
@@ -259,7 +266,6 @@ void* atender_cliente(void* arg) {
                       break;                                  
                   }                                       
               }                                         
-            wake_dispatcher();                                                     
         }                  
         else if (id == MOD_IO) { // Cuando un IO termino su trabajo
             t_io_registrada* io = buscar_io_por_fd(cliente_fd);
