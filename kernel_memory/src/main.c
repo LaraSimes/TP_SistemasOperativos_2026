@@ -239,6 +239,38 @@ void* manejar_cliente(void* arg) {
                     uint32_t ok = 0;
                     send(cliente_fd, &ok, sizeof(uint32_t), 0);
                 }
+                else if(cod_op == OP_READ_MEM){
+                    int pid;
+                    uint32_t dir;
+                    int tam;
+
+                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
+
+                    log_info(logger,"## PID: %d - Lectura (KS) - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
+
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+
+                    char* bytes_vacios = calloc(1, tam); // es como el malloc pero lo limpia llenadolo de ceros \0
+                    send(cliente_fd, bytes_vacios, tam, 0);
+                    free(bytes_vacios);
+                }
+                else if(cod_op == OP_WRITE_MEM){
+                    int pid;
+                    uint32_t dir;
+                    int tam;
+
+                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
+
+                    char* bytes = malloc(tam); 
+                    recv(cliente_fd, bytes, tam, MSG_WAITALL);
+                    free(bytes);
+
+                    log_info(logger,"## PID: %d - Escritura (KS) - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
+
+                    uint32_t ok = 0;
+                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
+                }
                 break;
             }
 
