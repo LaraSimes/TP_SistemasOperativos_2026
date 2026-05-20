@@ -113,12 +113,13 @@ while (1) {
 
         // EXECUTE
         int tipo_io = 0, param_io = 0;
-        int resultado = ejecutar(instruccion, &ctx, logger, pid, &tipo_io, &param_io);
+        char nombre_mutex[32] = {0};
+        int resultado = ejecutar(instruccion, &ctx, logger, pid, &tipo_io, &param_io, nombre_mutex);
         free(instruccion);
 
         if (resultado == FIN_PROCESO || resultado == SYSCALL) {
             guardar_contexto(fd_km, pid, &ctx, logger);
-            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, logger);
+            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, nombre_mutex, logger);
             break;
         }
 

@@ -29,7 +29,7 @@ void set_registro(t_contexto* ctx, char* nombre, uint32_t valor){
     if (strcmp(nombre, "PC") == 0)  { ctx->pc  = valor;            return; }
 }
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out){ //instrucciones que no usan mmu
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32]){ //instrucciones que no usan mmu
     
     char nombre[32] = {0};
     char arg1[32]   = {0};
@@ -115,11 +115,22 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* ti
         return SYSCALL;
     }
 
-    //SYSCALLS NO IMPLEMENTADAS
+    // INSTRUCCIONES MUTEX CREATE
     if (strcmp(nombre, "MUTEX_CREATE") == 0 ||
-        strcmp(nombre, "MUTEX_LOCK")   == 0 || 
-        strcmp(nombre, "MUTEX_UNLOCK")   == 0 || 
-        strcmp(nombre, "MEM_ALLOC")   == 0 || 
+    strcmp(nombre, "MUTEX_LOCK")   == 0 ||
+    strcmp(nombre, "MUTEX_UNLOCK") == 0) {
+    if      (strcmp(nombre, "MUTEX_CREATE") == 0) *tipo_io_out = SYSCALL_MUTEX_CREATE;
+    else if (strcmp(nombre, "MUTEX_LOCK")   == 0) *tipo_io_out = SYSCALL_MUTEX_LOCK;
+    else                                           *tipo_io_out = SYSCALL_MUTEX_UNLOCK;
+    strncpy(nombre_mutex_out, arg1, 31);
+    ctx->pc++;
+    return SYSCALL;
+}
+
+    //SYSCALLS NO IMPLEMENTADAS
+
+    
+    if (strcmp(nombre, "MEM_ALLOC")   == 0 || 
         strcmp(nombre, "MEM_FREE")   == 0 || 
         strcmp(nombre, "INIT_PROC")   == 0){
         log_warning(logger, "Syscall no implementada aun: %s", nombre);
