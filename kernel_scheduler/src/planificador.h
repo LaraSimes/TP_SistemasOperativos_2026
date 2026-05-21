@@ -34,6 +34,7 @@ typedef struct {
 // CPU registrada
 typedef struct {
     int fd;
+    int fd_interrupt; 
     int id;
     int libre;   // 1 = libre, 0 = ocupada
     t_pcb* pcb_actual;
@@ -92,6 +93,6 @@ void crear_proceso_inicial(char* path);
 t_io_registrada* buscar_io_por_tipo(t_tipo_io tipo);
 t_mutex* buscar_mutex(char* nombre);
 t_mutex* crear_mutex(char* nombre);
-
+t_cpu* buscar_cpu_por_id(int id);
 
 #endif

@@ -17,7 +17,7 @@ void manejar_clientes(int server_fd, char* proceso0_path);
 void* atender_cliente(void* arg);
 int recibir_operacion(int socket_cliente);
 void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb);
-
+void* manejar_interrupciones(void* arg);
        
 
 

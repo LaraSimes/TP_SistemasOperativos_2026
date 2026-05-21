@@ -160,7 +160,22 @@ t_cpu* buscar_cpu_por_fd(int fd) {
       }                                                                                                       
       pthread_mutex_unlock(&mutex_cpus);
       return encontrada;
-  }
+}
+
+t_cpu* buscar_cpu_por_id(int id) {
+      pthread_mutex_lock(&mutex_cpus);
+      t_cpu* encontrada = NULL;
+      for (int i = 0; i < list_size(lista_cpus); i++) {
+          t_cpu* cpu = list_get(lista_cpus, i);
+          if (cpu->id == id) {
+              encontrada = cpu;
+              break;
+          }
+      }
+      pthread_mutex_unlock(&mutex_cpus);
+      return encontrada;
+}
+
 
 t_io_registrada* buscar_io_por_fd(int fd){
     pthread_mutex_lock(&mutex_ios);                                                                           

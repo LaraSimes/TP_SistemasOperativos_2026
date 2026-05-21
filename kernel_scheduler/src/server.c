@@ -91,6 +91,7 @@ void* atender_cliente(void* arg) {
                 cpu->libre = 1; 
                 cpu->pcb_actual = NULL;      
                 cpu->interrupcion_pendiente = false;                                                        
+                cpu->fd_interrupt = -1;
                 pthread_mutex_lock(&mutex_cpus);
                 list_add(lista_cpus, cpu);                                                         
                 pthread_mutex_unlock(&mutex_cpus);
@@ -349,4 +350,29 @@ int recibir_operacion(int socket_cliente) {
     int bytes = recv(socket_cliente, &cod_op, sizeof(int), MSG_WAITALL);
     if (bytes <= 0) return -1;
     return cod_op;
+}
+
+void* manejar_interrupciones(void* arg) {
+    int server_fd = *(int*)arg;
+    while (1) {
+        int cliente_fd = esperar_cliente(server_fd);
+        if (cliente_fd == -1) continue;
+
+        t_modulo id;
+        recv(cliente_fd, &id, sizeof(t_modulo), MSG_WAITALL);
+        int confirmacion = 1; 
+        send(cliente_fd, &confirmacion, sizeof(int), 0);
+
+        int cpu_id;
+        recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
+          
+        t_cpu* cpu = NULL;
+        while (cpu == NULL) {
+            usleep(5000);
+            cpu = buscar_cpu_por_id(cpu_id);
+        }   
+        cpu->fd_interrupt = cliente_fd;
+        log_info(logger, "## CPU %d conectó canal de interrupciones", cpu_id);
+      }
+    return NULL;
 }

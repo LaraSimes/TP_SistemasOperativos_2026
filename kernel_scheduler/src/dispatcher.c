@@ -62,21 +62,21 @@ void wake_dispatcher() {
     sem_post(&sem_dispatcher);
 }
 
-void* thread_quantum(void* arg) {                                                  
+void* thread_quantum(void* arg) {
     t_args_quantum* args = arg;
-    t_cpu* cpu = args->cpu;                                                        
-    free(args); 
-                                                                                   
-    usleep(rr_quantum * 1000);  // rr_quantum en ms → usleep en μs                 
-   
-    pthread_mutex_lock(&mutex_cpus);                                               
-    if (cpu->interrupcion_pendiente) {
-        int interrupcion = 1;                                                      
-        send(cpu->fd, &interrupcion, sizeof(int), 0);
-        cpu->interrupcion_pendiente = false;                                            
-    }                                                                              
-    pthread_mutex_unlock(&mutex_cpus);                                           
-                                                                                     
+    t_cpu* cpu = args->cpu;
+    free(args);
+
+    usleep(rr_quantum * 1000);
+
+    pthread_mutex_lock(&mutex_cpus);
+    if (cpu->interrupcion_pendiente && cpu->pcb_actual != NULL && cpu->fd_interrupt >= 0) {
+        int interrupcion = 1;
+        send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
+        cpu->interrupcion_pendiente = false;
+    }
+    pthread_mutex_unlock(&mutex_cpus);
+
     return NULL;
-}                                                                                
+}
 

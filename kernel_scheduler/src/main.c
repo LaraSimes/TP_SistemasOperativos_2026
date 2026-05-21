@@ -6,6 +6,7 @@
     static char* ip_memoria;
     static char* puerto_memoria;
     static char* puerto_escucha;
+    static char* puerto_interrupt;
     t_log* logger;
 
     char* planification_algorithm;                                                     
@@ -59,6 +60,18 @@ int main(int argc, char* argv[]) {
     }
 	log_info(logger, "Servidor listo para recibir clientes");
 
+    int server_interrupt_fd = iniciar_servidor(puerto_interrupt);  
+    if (server_interrupt_fd == -1) {                               
+        log_error(logger, "No se pudo iniciar el servidor de interrupciones");
+        return EXIT_FAILURE;
+    }
+    log_info(logger, "Servidor de interrupciones listo en puerto %s", puerto_interrupt);
+
+    pthread_t hilo_interrupt;                                      
+    pthread_create(&hilo_interrupt, NULL, manejar_interrupciones, &server_interrupt_fd);
+    pthread_detach(hilo_interrupt);
+
+
     iniciar_planificador();
     iniciar_dispatcher();
 
@@ -77,7 +90,7 @@ void obtener_configuracion(t_config* config){
     planification_algorithm = config_get_string_value(config, "PLANIFICATION_ALGORITHM");                              
     rr_quantum = config_get_int_value(config, "RR_QUANTUM");                           
     suspension_timeout = config_get_int_value(config, "SUSPENSION_TIMEOUT");
-
+    puerto_interrupt = obtener_string("PUERTO_INTERRUPT", config);
     return;
 }
 void registrar_proceso_en_km(int pid, char* path) {                                
