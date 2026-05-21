@@ -54,6 +54,7 @@ void crear_proceso_inicial(char* path) {
           pthread_mutex_unlock(&mutex_init);
           int pid = generar_pid();                                                 
           t_pcb* pcb = crear_pcb(pid, path, 0);   
+          log_info(logger, "## (%d) Se crea el proceso - Estado: NEW", pid);
           registrar_proceso_en_km(pid, path);                                   
           encolar_ready(pcb);                  
       } else {                                                                       

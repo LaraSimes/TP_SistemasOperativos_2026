@@ -41,8 +41,7 @@ void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {
                   
     } else if (io->tipo == IO_STDOUT) {                                            
         int tamanio = pcb->param_io;
-        char* buffer = calloc(tamanio + 1, 1);                                     
-                                                                                     
+
         pthread_mutex_lock(&mutex_km);                                           
         t_operacion op = OP_READ_MEM;                                              
         send(fd_km, &op, sizeof(t_operacion), 0);                                  
@@ -50,7 +49,9 @@ void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {
         send(fd_km, &pcb->dir_logica, sizeof(uint32_t), 0);                        
         send(fd_km, &tamanio, sizeof(int), 0);                                     
         uint32_t ok_km;                                                          
-        recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);                        
+        recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);              
+        char* buffer = calloc(tamanio + 1, 1);
+        recv(fd_km, buffer, tamanio, MSG_WAITALL);          
         pthread_mutex_unlock(&mutex_km);
                                                                                      
         send(io->fd, &tamanio, sizeof(int), 0);
@@ -156,6 +157,7 @@ void* atender_cliente(void* arg) {
             // Paso 5 — switch según resultado
             switch(resultado) {                                                                                           
                 case FIN_PROCESO:
+                    log_info(logger, "## (%d) finalizó su ejecución con motivo de EXIT", pcb->pid);
                     cambiar_estado(pcb, EXIT);                                                                            
                     free(pcb->path_instrucciones);                                                                      
                     free(pcb);                    
@@ -243,24 +245,24 @@ void* atender_cliente(void* arg) {
                                 }                                                                                                                                                          
                                 break;
                                                                                                                                                                                             
-                            case SYSCALL_MUTEX_UNLOCK:                                 
-                              if (m != NULL) {                                       
-                                  pthread_mutex_lock(&mutex_mutex);                  
-                                  log_info(logger, "## (%d) Libera el Mutex %s", pcb->pid, nombre);                                                                 
-                                  t_pcb* siguiente = queue_pop(m->cola_espera);      
-                                  if (siguiente != NULL) {                           
-                                      m->owner_pid = siguiente->pid;
-                                      pthread_mutex_unlock(&mutex_mutex);            
-                                      log_info(logger, "## (%d) Toma el Mutex %s", siguiente->pid, nombre);                                                           
-                                      buscar_en_block(siguiente->pid);
-                                      encolar_ready(siguiente);                      
-                                  } else {                                           
-                                      m->owner_pid = -1;                           
-                                      pthread_mutex_unlock(&mutex_mutex);            
-                                  }
-                              }                                                    
-                              encolar_ready(pcb);
-                              break;
+                            case SYSCALL_MUTEX_UNLOCK:
+                                if (m != NULL) {
+                                    pthread_mutex_lock(&mutex_mutex);
+                                    log_info(logger, "## (%d) Libera el Mutex %s", pcb->pid, nombre);
+                                    if (!queue_is_empty(m->cola_espera)) {
+                                        t_pcb* siguiente = queue_pop(m->cola_espera);
+                                        m->owner_pid = siguiente->pid;
+                                        pthread_mutex_unlock(&mutex_mutex);
+                                        log_info(logger, "## (%d) Toma el Mutex %s", siguiente->pid, nombre);
+                                        buscar_en_block(siguiente->pid);
+                                        encolar_ready(siguiente);
+                                    } else {
+                                        m->owner_pid = -1;
+                                        pthread_mutex_unlock(&mutex_mutex);
+                                    }
+                                }
+                                encolar_ready(pcb);
+                                break;
                           }                            
                       }      
                       break;                                  
