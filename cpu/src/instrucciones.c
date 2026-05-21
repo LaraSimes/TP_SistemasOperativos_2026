@@ -29,7 +29,7 @@ void set_registro(t_contexto* ctx, char* nombre, uint32_t valor){
     if (strcmp(nombre, "PC") == 0)  { ctx->pc  = valor;            return; }
 }
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32]){ //instrucciones que no usan mmu
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out){ //instrucciones que no usan mmu
     
     char nombre[32] = {0};
     char arg1[32]   = {0};
@@ -97,21 +97,27 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* ti
 
     //SLEEP
     if (strcmp(nombre, "SLEEP") == 0) {
-        *tipo_io_out  = IO_SLEEP;
+        *tipo_io_out  = SYSCALL_IO_SLEEP;
         *param_io_out = atoi(arg1);
+        *dir_logica_out = 0;
+        ctx->pc++;
         return SYSCALL;
     }
 
     //STDOUT
     if (strcmp(nombre, "STDOUT") == 0) {
-        *tipo_io_out  = IO_STDOUT;
-        *param_io_out = 0; // Check 3 define qué mandar
+        *tipo_io_out  = SYSCALL_IO_STDOUT;
+        *dir_logica_out = get_registro(ctx, arg1);
+        *param_io_out = (int)get_registro(ctx, arg2); // Check 3 define qué mandar
+        ctx->pc++;
         return SYSCALL;
     }
     //STDIN
     if (strcmp(nombre, "STDIN") == 0) {
-        *tipo_io_out  = IO_STDIN;
-        *param_io_out = 0;
+        *tipo_io_out  = SYSCALL_IO_STDIN;
+        *dir_logica_out = get_registro(ctx, arg1);
+        *param_io_out = (int)get_registro(ctx, arg2);
+        ctx->pc++;
         return SYSCALL;
     }
 

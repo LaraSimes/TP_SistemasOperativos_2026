@@ -113,17 +113,25 @@ while (1) {
 
         // EXECUTE
         int tipo_io = 0, param_io = 0;
+        uint32_t dir_logica = 0;
         char nombre_mutex[32] = {0};
-        int resultado = ejecutar(instruccion, &ctx, logger, pid, &tipo_io, &param_io, nombre_mutex);
+        int resultado = ejecutar(instruccion, &ctx, logger, pid, &tipo_io, &param_io, nombre_mutex, &dir_logica);
         free(instruccion);
 
         if (resultado == FIN_PROCESO || resultado == SYSCALL) {
             guardar_contexto(fd_km, pid, &ctx, logger);
-            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, nombre_mutex, logger);
+            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, dir_logica, nombre_mutex, logger);
             break;
         }
 
         // CHECK INTERRUPT
+        int interrupcion = 0;
+        ssize_t n = recv(fd_ks, &interrupcion, sizeof(int), MSG_DONTWAIT);
+        if( n > 0 && interrupcion == 1) {
+            guardar_contexto(fd_km, pid, &ctx, logger);
+            devolver_a_ks(fd_ks, pid, CONTINUAR, &ctx, 0, 0, 0, "", logger);
+            break;
+        }
     }
 }
 
