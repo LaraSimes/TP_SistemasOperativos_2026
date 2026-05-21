@@ -90,7 +90,10 @@ void encolar_ready(t_pcb* pcb) {
 
 t_pcb* desencolar_ready() {
     pthread_mutex_lock(&mutex_ready);
-    t_pcb* pcb = queue_pop(cola_ready);
+    t_pcb* pcb = NULL;
+    if (!queue_is_empty(cola_ready)) {
+        pcb = queue_pop(cola_ready);
+    }
     pthread_mutex_unlock(&mutex_ready);
     return pcb;
 }

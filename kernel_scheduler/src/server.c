@@ -298,7 +298,10 @@ void* atender_cliente(void* arg) {
                 free(buffer);
 
                 pthread_mutex_lock(&mutex_ios);
-                t_pcb* siguiente = queue_pop(io->cola_espera);
+                t_pcb* siguiente = NULL;
+                if (!queue_is_empty(io->cola_espera)) {
+                    siguiente = queue_pop(io->cola_espera);
+                }
                 if (siguiente != NULL) {
                     io->pid_actual = siguiente->pid;
                     pthread_mutex_unlock(&mutex_ios);
@@ -316,7 +319,10 @@ void* atender_cliente(void* arg) {
 
             } else { // STDOUT y SLEEP
                 pthread_mutex_lock(&mutex_ios);
-                t_pcb* siguiente = queue_pop(io->cola_espera);
+                t_pcb* siguiente = NULL;
+                if (!queue_is_empty(io->cola_espera)) {
+                    siguiente = queue_pop(io->cola_espera);
+                }
                 if (siguiente != NULL) {
                     io->pid_actual = siguiente->pid;
                     pthread_mutex_unlock(&mutex_ios);
