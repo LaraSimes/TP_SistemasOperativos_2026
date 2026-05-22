@@ -67,10 +67,30 @@ int main(int argc, char *argv[])
 
     if (send(fd_ks, &cpu_id, sizeof(int), 0) == -1)
     {
-        log_error(logger, "Error enviando cpu_id a KM");
+        log_error(logger, "Error enviando cpu_id a KS");
         return -1;
     }
     log_info(logger, "Identificacion enviada a Kernel Scheduler");
+
+    int fd_interrupt = crear_cliente(valores.ip_kernel_scheduler, valores.puerto_interrupt);
+
+    if (fd_interrupt == -1) {
+        log_error(logger, "No se pudo conectar al canal de interrupciones");
+        close(fd_ks);
+        close(fd_km);
+        return EXIT_FAILURE;
+    }
+
+    if(!handshake(fd_interrupt, logger, MOD_CPU, MOD_KERNEL_SCHEDULER)) {
+        log_error(logger, "Fallo el handshake del canal de interrupciones");
+        return EXIT_FAILURE;
+    }
+
+    if(send(fd_interrupt, &cpu_id, sizeof(int), 0) == -1) {
+        log_error(logger, "Error enviando cpu_id por canal de interrupciones");
+        return EXIT_FAILURE;
+    }
+    log_info(logger, "Canal de interrupciones listo");
 
     int fd_ms = crear_cliente(valores.ip_memory_stick, valores.puerto_memory_stick);
 
@@ -126,7 +146,7 @@ while (1) {
 
         // CHECK INTERRUPT
         int interrupcion = 0;
-        ssize_t n = recv(fd_ks, &interrupcion, sizeof(int), MSG_DONTWAIT);
+        ssize_t n = recv(fd_interrupt, &interrupcion, sizeof(int), MSG_DONTWAIT);
         if( n > 0 && interrupcion == 1) {
             guardar_contexto(fd_km, pid, &ctx, logger);
             devolver_a_ks(fd_ks, pid, CONTINUAR, &ctx, 0, 0, 0, "", logger);

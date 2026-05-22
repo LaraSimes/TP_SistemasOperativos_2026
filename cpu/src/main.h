@@ -22,6 +22,7 @@ typedef struct {
     char* log_level;
     char* ip_kernel_scheduler;
     char* puerto_kernel_scheduler;
+    char* puerto_interrupt;
     char* ip_kernel_memory;
     char* puerto_kernel_memory;
     char* ip_memory_stick;
