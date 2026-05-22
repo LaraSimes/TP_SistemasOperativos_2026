@@ -336,7 +336,7 @@ void* manejar_cliente(void* arg) {
 
                             uint32_t ok = 0;
                             send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                            log_info(logger, "PID: %d Contexto actalizado (Mock OK)", pid_pedido);
+                            log_info(logger, "PID: %d Contexto actualizado (Mock OK)", pid_pedido);
                         }
                     }
                 }
