@@ -35,9 +35,11 @@ void cargar_informacion_configuracion(t_config* config, t_config_valores* valore
 t_contexto pedir_contexto(int fd_km, int pid, t_log* logger);
 void guardar_contexto(int fd_km, int pid, t_contexto* ctx, t_log* logger);
 
-void devolver_a_ks(int fd_ks, int pid, int resultado, t_contexto* ctx, int tipo_io, int param_io, uint32_t dir_logica, char* nombre_mutex, t_log* logger);
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out);
+
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_km, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out, int* seg_id_out, char archivo_proc_out[256]);
+
+void devolver_a_ks(int fd_ks, int pid, int resultado, t_contexto* ctx, int tipo_io, int param_io, uint32_t dir_logica, char* nombre_mutex, int seg_id, char* archivo_proc, t_log* logger);
 
 char* fetch(int fd_km, int pid, uint32_t pc, t_log* logger);
 

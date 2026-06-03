@@ -132,15 +132,18 @@ while (1) {
         char* instruccion = fetch(fd_km, pid, ctx.pc, logger);
 
         // EXECUTE
-        int tipo_io = 0, param_io = 0;
+        int tipo_io = 0; 
+        int param_io = 0;
+        int seg_id = 0;
+        char archivo_proc[256] = {0};
         uint32_t dir_logica = 0;
         char nombre_mutex[32] = {0};
-        int resultado = ejecutar(instruccion, &ctx, logger, pid, &tipo_io, &param_io, nombre_mutex, &dir_logica);
+        int resultado = ejecutar(instruccion, &ctx, logger, pid, fd_km, &tipo_io, &param_io, nombre_mutex, &dir_logica, &seg_id, archivo_proc);
         free(instruccion);
 
-        if (resultado == FIN_PROCESO || resultado == SYSCALL) {
+        if (resultado == FIN_PROCESO || resultado == SYSCALL || resultado == SEG_FAULT) {
             guardar_contexto(fd_km, pid, &ctx, logger);
-            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, dir_logica, nombre_mutex, logger);
+            devolver_a_ks(fd_ks, pid, resultado, &ctx, tipo_io, param_io, dir_logica, nombre_mutex, seg_id, archivo_proc, logger);
             break;
         }
 
@@ -149,7 +152,7 @@ while (1) {
         ssize_t n = recv(fd_interrupt, &interrupcion, sizeof(int), MSG_DONTWAIT);
         if( n > 0 && interrupcion == 1) {
             guardar_contexto(fd_km, pid, &ctx, logger);
-            devolver_a_ks(fd_ks, pid, CONTINUAR, &ctx, 0, 0, 0, "", logger);
+            devolver_a_ks(fd_ks, pid, CONTINUAR, &ctx, 0, 0, 0, "", 0, "", logger);
             break;
         }
     }

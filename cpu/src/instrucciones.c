@@ -29,7 +29,14 @@ void set_registro(t_contexto* ctx, char* nombre, uint32_t valor){
     if (strcmp(nombre, "PC") == 0)  { ctx->pc  = valor;            return; }
 }
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out){ //instrucciones que no usan mmu
+
+static int sizeof_registro(char* nombre) {
+    if (strcmp(nombre,"AX")==0 || strcmp(nombre,"BX")==0 ||
+        strcmp(nombre,"CX")==0 || strcmp(nombre,"DX")==0) return 1;
+    return 4;
+}
+
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_km, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out, int* seg_id_out, char archivo_proc_out[256]){ //instrucciones que no usan mmu
     
     char nombre[32] = {0};
     char arg1[32]   = {0};
@@ -84,11 +91,82 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int* ti
         return FIN_PROCESO;
     }
 
-    // Instrucciones de memoria — Check 3
-    if (strcmp(nombre, "MOV_IN")   == 0 || 
-        strcmp(nombre, "MOV_OUT")  == 0 ||
-        strcmp(nombre, "COPY_MEM") == 0) {
-        log_warning(logger, "Instruccion de memoria pendiente para Check 3: %s", nombre);
+    //MOV_IN
+    if (strcmp(nombre, "MOV_IN") == 0) {
+        uint32_t dir_logica = ctx->si;
+        int size = sizeof_registro(arg1);
+
+        t_operacion op = OP_READ_MEM;
+        send(fd_km, &op,         sizeof(t_operacion), 0);
+        send(fd_km, &pid,        sizeof(int),         0);
+        send(fd_km, &dir_logica, sizeof(uint32_t),    0);
+        send(fd_km, &size,       sizeof(int),         0);
+
+        int ok;
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 1) return SEG_FAULT;
+
+        uint32_t valor = 0;
+        recv(fd_km, &valor, size, MSG_WAITALL);
+        set_registro(ctx, arg1, valor);
+
+        log_info(logger, "PID: %d - Acción: LEER - Dirección Física: %u - Valor: %u", pid, dir_logica, valor);
+        ctx->pc++;
+        return CONTINUAR;
+    }
+
+    //MOV_OUT
+    if (strcmp(nombre, "MOV_OUT") == 0) {
+        uint32_t dir_logica = ctx->di;
+        int size = sizeof_registro(arg1);
+        uint32_t valor = get_registro(ctx, arg1);
+
+        t_operacion op = OP_WRITE_MEM;
+        send(fd_km, &op,         sizeof(t_operacion), 0);
+        send(fd_km, &pid,        sizeof(int),         0);
+        send(fd_km, &dir_logica, sizeof(uint32_t),    0);
+        send(fd_km, &size,       sizeof(int),         0);
+        send(fd_km, &valor,      size,                0);
+
+        int ok;
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 1) return SEG_FAULT;
+
+        log_info(logger, "PID: %d - Acción: ESCRIBIR - Dirección Física: %u - Valor: %u", pid, dir_logica, valor);
+        ctx->pc++;
+        return CONTINUAR;
+    }
+
+    //COPY_MEM
+    if (strcmp(nombre, "COPY_MEM") == 0) {
+        int size = (int)get_registro(ctx, arg1);
+        uint32_t dir_src = ctx->si;
+        uint32_t dir_dst = ctx->di;
+
+        t_operacion op = OP_READ_MEM;
+        send(fd_km, &op,      sizeof(t_operacion), 0);
+        send(fd_km, &pid,     sizeof(int),         0);
+        send(fd_km, &dir_src, sizeof(uint32_t),    0);
+        send(fd_km, &size,    sizeof(int),         0);
+
+        int ok;
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 1) return SEG_FAULT;
+
+        uint8_t* buffer = malloc(size);
+        recv(fd_km, buffer, size, MSG_WAITALL);
+
+        op = OP_WRITE_MEM;
+        send(fd_km, &op,      sizeof(t_operacion), 0);
+        send(fd_km, &pid,     sizeof(int),         0);
+        send(fd_km, &dir_dst, sizeof(uint32_t),    0);
+        send(fd_km, &size,    sizeof(int),         0);
+        send(fd_km, buffer,   size,                0);
+        free(buffer);
+
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 1) return SEG_FAULT;
+
         ctx->pc++;
         return CONTINUAR;
     }

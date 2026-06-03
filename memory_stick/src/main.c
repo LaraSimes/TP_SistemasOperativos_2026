@@ -233,7 +233,7 @@ void* manejar_km(void* arg) {
 
             free(buffer);
 
-            uint32_t ok = 0;
+            uint32_t ok = 1;
             send(fd, &ok, sizeof(uint32_t), 0);
 
             log_info(logger, "## Escritura de %d bytes", size);
