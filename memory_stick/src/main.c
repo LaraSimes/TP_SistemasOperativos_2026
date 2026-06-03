@@ -1,5 +1,5 @@
 #include "memory_stick.h"
-
+#include <pthread.h>
 
 t_log *logger;
 int socket_servidor;
@@ -14,14 +14,20 @@ int socket_kernelMemory;
 int tamanio_memoryStick;
 
 
-
+uint8_t*        memoria;
+int             memory_delay;
+pthread_mutex_t mutex_memoria = PTHREAD_MUTEX_INITIALIZER;
 
 int main(int argc, char* argv[]) {
 
-    if(argc <2){
-        printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
+    if(argc < 3){
+        printf("Uso: %s [Config] [Tamanio]\n", argv[0]);
         return EXIT_FAILURE;
     }
+
+    int tamanio = atoi(argv[2]);
+    memoria = malloc(tamanio);
+    memset(memoria, 0, tamanio);
 
    logger = iniciar_logger(MOD_MEMORY_STICK, LOG_LEVEL_INFO);
    obtenerConfig(argv[1]);
@@ -41,28 +47,34 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     } 
 
-   send(socket_kernelMemory, &tamanio_memoryStick, sizeof(int), 0);
+    send(socket_kernelMemory, &tamanio, sizeof(int), 0);
 
+   
+    pthread_t hilo_km;
+    int* fd_ptr = malloc(sizeof(int));
+    *fd_ptr = socket_kernelMemory;
+    pthread_create(&hilo_km, NULL, manejar_km, fd_ptr);
+    pthread_detach(hilo_km);
 
     //ser servidor de CPU
 
    socket_servidor = iniciar_servidor_ms(puerto_escucha);
    log_info(logger, "Memory Stick listo para recibir CPU");
 
-   while(1){
-    int cliente_fd = esperar_cliente_ms(socket_servidor);
-
-    if(cliente_fd != -1){
-        manejar_cpu(cliente_fd);
+   // loop de CPUs — reemplazar el while actual:
+    while (1) {
+        int cliente_fd = esperar_cliente_ms(socket_servidor);
+        if (cliente_fd != -1) {
+            pthread_t hilo_cpu;
+            int* fd_ptr = malloc(sizeof(int));
+            *fd_ptr = cliente_fd;
+            pthread_create(&hilo_cpu, NULL, (void*(*)(void*))manejar_cpu, fd_ptr);
+            pthread_detach(hilo_cpu);
+        }
     }
-}
-
-
 
    log_destroy(logger);
    config_destroy(config);
-
-
    return 0;
 }
 
@@ -81,7 +93,7 @@ void obtenerConfig(char* ruta){
 
     ip_kernelMemory = config_get_string_value(config, "IP_KERNELMEMORY");
     puerto_kernelMemory = config_get_string_value(config, "PUERTO_KERNELMEMORY");
-    tamanio_memoryStick = config_get_int_value(config, "TAMANIO_MEMORY_STICK");
+    memory_delay = config_get_int_value(config, "MEMORY_DELAY");
 }
 
 int iniciar_servidor_ms(char*puerto)
@@ -148,10 +160,12 @@ int esperar_cliente_ms(int socket_servidor)
 	return socket_cliente;
 }
 
-void manejar_cpu(int cliente_fd) {
+void manejar_cpu(int* arg) {
 
+    int cliente_fd = *(int*)arg;
+    free(arg);
     t_modulo modulo;
-    int cpu_id;
+    
 
     recv(cliente_fd, &modulo, sizeof(int), MSG_WAITALL);
 
@@ -161,12 +175,71 @@ void manejar_cpu(int cliente_fd) {
         return;
     }
 
-    int ok = 0;
+    int ok = 1;
     send(cliente_fd, &ok, sizeof(int), 0);
 
+    int cpu_id;
     recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
-
     log_info(logger, "## CPU %d Conectada", cpu_id);
 
-    
+    char buf[1];
+    while (recv(cliente_fd, buf, 1, MSG_WAITALL) > 0);
+    close(cliente_fd);
+}
+
+void* manejar_km(void* arg) {
+    int fd = *(int*)arg;
+    free(arg);
+
+    while (1) {
+        t_operacion op;
+        if (recv(fd, &op, sizeof(t_operacion), MSG_WAITALL) <= 0) {
+            log_warning(logger, "KM desconectado");
+            break;
+        }
+
+        if (op == OP_READ_MEM) {
+            int      pid;
+            uint32_t dir_fisica;
+            int      size;
+            recv(fd, &pid,       sizeof(int),       MSG_WAITALL);
+            recv(fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
+            recv(fd, &size,      sizeof(int),       MSG_WAITALL);
+
+            usleep(memory_delay * 1000);
+
+            pthread_mutex_lock(&mutex_memoria);
+            send(fd, memoria + dir_fisica, size, 0);
+            pthread_mutex_unlock(&mutex_memoria);
+
+            log_info(logger, "## Lectura de %d bytes", size);
+
+        } else if (op == OP_WRITE_MEM) {
+            int      pid;
+            uint32_t dir_fisica;
+            int      size;
+            recv(fd, &pid,        sizeof(int),      MSG_WAITALL);
+            recv(fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
+            recv(fd, &size,       sizeof(int),      MSG_WAITALL);
+
+            uint8_t* buffer = malloc(size);
+            recv(fd, buffer, size, MSG_WAITALL);
+
+            usleep(memory_delay * 1000);
+
+            pthread_mutex_lock(&mutex_memoria);
+            memcpy(memoria + dir_fisica, buffer, size);
+            pthread_mutex_unlock(&mutex_memoria);
+
+            free(buffer);
+
+            uint32_t ok = 0;
+            send(fd, &ok, sizeof(uint32_t), 0);
+
+            log_info(logger, "## Escritura de %d bytes", size);
+        }
+    }
+
+    close(fd);
+    return NULL;
 }
