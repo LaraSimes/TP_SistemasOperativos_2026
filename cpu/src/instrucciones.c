@@ -213,13 +213,31 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
     //SYSCALLS NO IMPLEMENTADAS
 
-    
-    if (strcmp(nombre, "MEM_ALLOC")   == 0 || 
-        strcmp(nombre, "MEM_FREE")   == 0 || 
-        strcmp(nombre, "INIT_PROC")   == 0){
-        log_warning(logger, "Syscall no implementada aun: %s", nombre);
+    //MEM_ALOC
+    if (strcmp(nombre, "MEM_ALLOC") == 0) {
+        *tipo_io_out  = SYSCALL_MEM_ALLOC;
+        *seg_id_out   = atoi(arg1);   // id del segmento
+        *param_io_out = atoi(arg2);   // tamaño
+        ctx->pc++;
         return SYSCALL;
     }
-    return SYSCALL;
+
+    //MEM_FREE
+    if (strcmp(nombre, "MEM_FREE") == 0) {
+        *tipo_io_out = SYSCALL_MEM_FREE;
+        *seg_id_out  = atoi(arg1);    // id del segmento
+        ctx->pc++;
+        return SYSCALL;
+    }
+
+    //INIT_PROC
+    if (strcmp(nombre, "INIT_PROC") == 0) {
+        *tipo_io_out  = SYSCALL_INIT_PROC;
+        strncpy(archivo_proc_out, arg1, 255);  // nombre del archivo
+        *param_io_out = atoi(arg2);            // prioridad
+        ctx->pc++;
+        return SYSCALL;
+    }
+
 }
 
