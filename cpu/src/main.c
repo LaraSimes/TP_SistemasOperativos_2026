@@ -151,6 +151,7 @@ while (1) {
         int interrupcion = 0;
         ssize_t n = recv(fd_interrupt, &interrupcion, sizeof(int), MSG_DONTWAIT);
         if( n > 0 && interrupcion == 1) {
+            log_info(logger, "## Interrupción recibida"); 
             guardar_contexto(fd_km, pid, &ctx, logger);
             devolver_a_ks(fd_ks, pid, CONTINUAR, &ctx, 0, 0, 0, "", 0, "", logger);
             break;
