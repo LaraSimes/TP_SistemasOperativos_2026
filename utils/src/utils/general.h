@@ -13,6 +13,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <stdint.h>
 
 typedef enum {
     IO_SLEEP,

@@ -1,19 +1,9 @@
 #ifndef MAIN_H_
 #define MAIN_H_
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <commons/log.h>
-#include <commons/config.h>
-
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <string.h>
-#include <pthread.h> 
 #include "utils/general.h"
-#include <stdint.h>
+#include "servidor.h"
+#include "operaciones.h"
 
 typedef struct{
     char* log_level;
@@ -28,17 +18,21 @@ typedef struct {
     int pid;
     char* path_instrucciones;
     t_contexto contexto;
+    t_list* segmentos;
 } t_proceso_control;
 // definimos struct del pid y path de instrucciones. Molde de 1 procesoS
 
-void cargar_informacion_configuracion(t_config* config, t_config_valores* valores);
-void terminar_programa(int server_fd, t_log* logger, t_config* config);
+typedef struct {
+    int num_segmento;
+    uint32_t base;
+    uint32_t limite;
+} t_segmento;
+//definimos struct del segmento, con su numero, base y limite
 
-int iniciar_servidor(char*puerto);
-int esperar_cliente (int socket_servidor);
+void cargar_informacion_configuracion(t_config* config, t_config_valores* valores);
+
 void* manejar_cliente(void* arg);
 
-void recibir_creacion_proceso(int socket_cliente);
 char* leer_instruccion_de_archivo(char* path, uint32_t pc);
 t_proceso_control* buscar_proceso_por_pid(int pid);
 
@@ -47,9 +41,5 @@ bool _es_el_proceso(void* elemento);
 extern t_list* procesos_activos;
 
 pthread_mutex_t mutex_lista_procesos;
-
-void recibir_datos_memoria_mock(int socket, int* pid, uint32_t* dir, int* tam);
-
-uint32_t obtener_espacio_libre_mock();
 
 #endif
