@@ -2,11 +2,16 @@
 
 extern t_log* logger;
 extern void registrar_proceso_en_km(int pid, char* path);
+extern char* planification_algorithm;
+extern char** queues_algorithms;
+extern int    queues_count;
+extern bool   queue_preemption;
 
 // Colas globales
-t_queue* cola_new;
-t_queue* cola_ready;
-t_queue* cola_block;
+t_queue*  cola_new;
+t_queue** colas_ready;
+int       num_colas;
+t_queue*  cola_block;
 
 // Listas globales
 t_list* lista_cpus;
@@ -24,13 +29,21 @@ pthread_mutex_t mutex_mutex  = PTHREAD_MUTEX_INITIALIZER;
 static int siguiente_pid = 0;
 static pthread_mutex_t mutex_pid = PTHREAD_MUTEX_INITIALIZER;
 
-void iniciar_planificador() { // Crea todas las colas y listas vacías al arrancar
+void iniciar_planificador() {
     cola_new   = queue_create();
-    cola_ready = queue_create();
     cola_block = queue_create();
-    lista_cpus = list_create();
-    lista_ios  = list_create();
+    lista_cpus  = list_create();
+    lista_ios   = list_create();
     lista_mutex = list_create();
+
+    if (strcmp(planification_algorithm, "CMN") == 0) {
+        num_colas = queues_count;
+    } else {
+        num_colas = 1;
+    }
+    colas_ready = malloc(num_colas * sizeof(t_queue*));
+    for (int i = 0; i < num_colas; i++)
+        colas_ready[i] = queue_create();
 }
 
 t_pcb* crear_pcb(int pid, char* path, int prioridad) {
@@ -83,17 +96,50 @@ void cambiar_estado(t_pcb* pcb, t_estado nuevo_estado) {
 
 void encolar_ready(t_pcb* pcb) {
     cambiar_estado(pcb, READY);
+
+    int index;
+    if (strcmp(planification_algorithm, "CMN") == 0) {
+        index = pcb->prioridad;
+    } else {
+        index = 0;
+    }
+    if (index < 0 || index >= num_colas) {
+        log_warning(logger, "## (%d) Prioridad %d fuera de rango, proceso no planificado", pcb->pid, pcb->prioridad);
+        return;
+    }
+
     pthread_mutex_lock(&mutex_ready);
-    queue_push(cola_ready, pcb);
+    queue_push(colas_ready[index], pcb);
     pthread_mutex_unlock(&mutex_ready);
+
+    if (strcmp(planification_algorithm, "CMN") == 0 && queue_preemption) {
+        pthread_mutex_lock(&mutex_cpus);
+        for (int i = 0; i < list_size(lista_cpus); i++) {
+            t_cpu* cpu = list_get(lista_cpus, i);
+            if (!cpu->libre && cpu->pcb_actual != NULL &&
+                cpu->pcb_actual->prioridad > pcb->prioridad &&
+                !cpu->interrupcion_pendiente && cpu->fd_interrupt >= 0) {
+                int interrupcion = 1;
+                send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
+                cpu->interrupcion_pendiente = true;
+                log_info(logger, "## (%d) Prioridad: %d - Desalojado por cola más prioritaria por el proceso %d con prioridad %d",
+                         cpu->pcb_actual->pid, cpu->pcb_actual->prioridad, pcb->pid, pcb->prioridad);
+            }
+        }
+        pthread_mutex_unlock(&mutex_cpus);
+    }
+
     wake_dispatcher();
 }
 
 t_pcb* desencolar_ready() {
     pthread_mutex_lock(&mutex_ready);
     t_pcb* pcb = NULL;
-    if (!queue_is_empty(cola_ready)) {
-        pcb = queue_pop(cola_ready);
+    for (int i = 0; i < num_colas; i++) {
+        if (!queue_is_empty(colas_ready[i])) {
+            pcb = queue_pop(colas_ready[i]);
+            break;
+        }
     }
     pthread_mutex_unlock(&mutex_ready);
     return pcb;

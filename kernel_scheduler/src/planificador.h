@@ -51,9 +51,10 @@ typedef struct {
 } t_mutex;
 
 // Colas globales
-extern t_queue* cola_new;
-extern t_queue* cola_ready;
-extern t_queue* cola_block;
+extern t_queue*  cola_new;
+extern t_queue** colas_ready;
+extern int       num_colas;
+extern t_queue*  cola_block;
 
 // Listas Globales
 extern t_list* lista_cpus;

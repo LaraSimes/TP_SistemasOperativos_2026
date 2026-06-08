@@ -217,15 +217,15 @@ void* atender_cliente(void* arg) {
                             }                                                                          
                         }                                                                              
                     }                                                                                                                                                                       
-                     else {                                                                                                                                                             
+                     else if (tipo_syscall <= SYSCALL_MUTEX_UNLOCK) {
                         char nombre[32];
-                        recv(cliente_fd, nombre, 32, MSG_WAITALL);                                                                                                                         
-                
-                        char* nombre_syscall;                                                                                                                                              
-                        switch (tipo_syscall) {                                                                                                                                          
-                            case SYSCALL_MUTEX_CREATE: nombre_syscall = "MUTEX_CREATE"; break;                                                                                             
-                            case SYSCALL_MUTEX_LOCK:   nombre_syscall = "MUTEX_LOCK";   break;                                                                                           
-                            default:                   nombre_syscall = "MUTEX_UNLOCK"; break;                                                                                             
+                        recv(cliente_fd, nombre, 32, MSG_WAITALL);
+
+                        char* nombre_syscall;
+                        switch (tipo_syscall) {
+                            case SYSCALL_MUTEX_CREATE: nombre_syscall = "MUTEX_CREATE"; break;
+                            case SYSCALL_MUTEX_LOCK:   nombre_syscall = "MUTEX_LOCK";   break;
+                            default:                   nombre_syscall = "MUTEX_UNLOCK"; break;
                         }
                         log_info(logger, "## (%d) - Solicitó syscall: %s %s", pcb->pid, nombre_syscall, nombre);                                                                           
                                                                                                                                                                                             
@@ -270,9 +270,27 @@ void* atender_cliente(void* arg) {
                                 }
                                 encolar_ready(pcb);
                                 break;
-                          }                            
-                      }      
-                      break;                                  
+                          }
+                     } else if (tipo_syscall == SYSCALL_INIT_PROC) {
+                        log_info(logger, "## (%d) - Solicitó syscall: INIT_PROC", pcb->pid);
+
+                        int prioridad;
+                        recv(cliente_fd, &prioridad, sizeof(int), MSG_WAITALL);
+                        int len;
+                        recv(cliente_fd, &len, sizeof(int), MSG_WAITALL);
+                        char* path = malloc(len);
+                        recv(cliente_fd, path, len, MSG_WAITALL);
+
+                        int nuevo_pid = generar_pid();
+                        t_pcb* hijo = crear_pcb(nuevo_pid, path, prioridad);
+                        free(path);
+
+                        log_info(logger, "## (%d) Se crea el proceso - Estado: NEW", nuevo_pid);
+                        registrar_proceso_en_km(nuevo_pid, hijo->path_instrucciones);
+                        encolar_ready(hijo);
+                        encolar_ready(pcb);
+                     }
+                      break;
                   }                                       
               }                                         
         }                  

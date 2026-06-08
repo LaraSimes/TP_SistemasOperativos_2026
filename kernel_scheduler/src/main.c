@@ -9,9 +9,13 @@
     static char* puerto_interrupt;
     t_log* logger;
 
-    char* planification_algorithm;                                                     
-    int rr_quantum;               
-    int suspension_timeout;
+    char* planification_algorithm;
+    int   rr_quantum;
+    int   suspension_timeout;
+
+    char** queues_algorithms = NULL;
+    int    queues_count      = 0;
+    bool   queue_preemption  = false;
 
     int fd_km;
     pthread_mutex_t mutex_km = PTHREAD_MUTEX_INITIALIZER;
@@ -87,10 +91,18 @@ void obtener_configuracion(t_config* config){
 	ip_memoria = obtener_string("IP_MEMORIA", config);
     puerto_memoria = obtener_string("PUERTO_MEMORIA", config);
     puerto_escucha = obtener_string("PUERTO_ESCUCHA", config);
-    planification_algorithm = config_get_string_value(config, "PLANIFICATION_ALGORITHM");                              
-    rr_quantum = config_get_int_value(config, "RR_QUANTUM");                           
+    planification_algorithm = config_get_string_value(config, "PLANIFICATION_ALGORITHM");
+    rr_quantum = config_get_int_value(config, "RR_QUANTUM");
     suspension_timeout = config_get_int_value(config, "SUSPENSION_TIMEOUT");
     puerto_interrupt = obtener_string("PUERTO_INTERRUPT", config);
+
+    if (strcmp(planification_algorithm, "CMN") == 0) {
+        queues_algorithms = config_get_array_value(config, "QUEUES_ALGORITHMS");
+        for (queues_count = 0; queues_algorithms[queues_count] != NULL; queues_count++) {
+        }
+        char* preemption_str = config_get_string_value(config, "QUEUE_PREEMPTION");
+        queue_preemption = strcmp(preemption_str, "TRUE") == 0;
+    }
     return;
 }
 void registrar_proceso_en_km(int pid, char* path) {                                

@@ -20,9 +20,14 @@ void obtener_configuracion();
 void registrar_proceso_en_km(int pid, char* path);   
 
 extern char* planification_algorithm;
-extern int rr_quantum;                                                             
-extern int suspension_timeout;
-extern int fd_km;                                                                  
+extern int   rr_quantum;
+extern int   suspension_timeout;
+extern int   fd_km;
 extern pthread_mutex_t mutex_km;
+
+// CMN
+extern char** queues_algorithms;
+extern int    queues_count;
+extern bool   queue_preemption;
 
 #endif /* CLIENT_H_ */

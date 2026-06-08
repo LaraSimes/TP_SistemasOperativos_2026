@@ -2,6 +2,9 @@
 #include "main.h"
 
 extern t_log* logger;
+extern char*  planification_algorithm;
+extern char** queues_algorithms;
+extern int    queues_count;
 
 typedef struct {
     t_cpu* cpu;                                                                    
@@ -47,13 +50,22 @@ void* dispatcher_thread(void* arg) {
 
         cpu->pcb_actual = pcb;
 
+        bool usar_quantum = false;
         if (strcmp(planification_algorithm, "RR") == 0) {
-                cpu->interrupcion_pendiente = true;
-                t_args_quantum* args = malloc(sizeof(t_args_quantum));
-                args->cpu = cpu;
-                pthread_t hilo;
-                pthread_create(&hilo, NULL, thread_quantum, args);
-                pthread_detach(hilo);
+            usar_quantum = true;
+        } else if (strcmp(planification_algorithm, "CMN") == 0) {
+            int index = pcb->prioridad;
+            if (index >= 0 && index < queues_count)
+                usar_quantum = strcmp(queues_algorithms[index], "RR") == 0;
+        }
+
+        if (usar_quantum) {
+            cpu->interrupcion_pendiente = true;
+            t_args_quantum* args = malloc(sizeof(t_args_quantum));
+            args->cpu = cpu;
+            pthread_t hilo;
+            pthread_create(&hilo, NULL, thread_quantum, args);
+            pthread_detach(hilo);
         }
     }
     return NULL;
