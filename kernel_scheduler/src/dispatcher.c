@@ -39,6 +39,7 @@ void* dispatcher_thread(void* arg) {
         pthread_mutex_unlock(&mutex_cpus);
 
         cambiar_estado(pcb, EXEC);
+        pcb->fd_cpu_dispatch = cpu->fd;
 
         if (send(cpu->fd, &pcb->pid, sizeof(int), 0) == -1) {
             log_error(logger, "Error enviando PID a CPU");

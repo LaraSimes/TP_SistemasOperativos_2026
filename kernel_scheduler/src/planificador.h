@@ -28,7 +28,9 @@ typedef struct {
     // IO pendiente
     t_tipo_io tipo_io_pendiente;
     int param_io;           // ms para SLEEP, cantidad para STDIN/STDOUT
-    uint32_t dir_logica;    // dirección lógica para STDIN/STDOUT
+    uint32_t dir_fisica;    // dirección física para STDIN/STDOUT
+    // fd de la CPU que despachó este proceso (para syscalls de memoria)
+    int fd_cpu_dispatch;
 } t_pcb;
 
 // CPU registrada

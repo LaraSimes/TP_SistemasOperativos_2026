@@ -40,6 +40,7 @@ t_pcb* crear_pcb(int pid, char* path, int prioridad) {
     pcb->estado = NEW;
     pcb->path_instrucciones = strdup(path);
     pcb->param_io = 0;
+    pcb->fd_cpu_dispatch = -1;
     memset(&pcb->contexto, 0, sizeof(t_contexto));
     return pcb;
 }

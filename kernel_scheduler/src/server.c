@@ -46,7 +46,7 @@ void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {
         t_operacion op = OP_READ_MEM;                                              
         send(fd_km, &op, sizeof(t_operacion), 0);                                  
         send(fd_km, &pcb->pid, sizeof(int), 0);                                    
-        send(fd_km, &pcb->dir_logica, sizeof(uint32_t), 0);                        
+        send(fd_km, &pcb->dir_fisica, sizeof(uint32_t), 0);                        
         send(fd_km, &tamanio, sizeof(int), 0);                                     
         uint32_t ok_km;                                                          
         recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);              
@@ -159,9 +159,15 @@ void* atender_cliente(void* arg) {
             switch(resultado) {                                                                                           
                 case FIN_PROCESO:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de EXIT", pcb->pid);
-                    cambiar_estado(pcb, EXIT);                                                                            
-                    free(pcb->path_instrucciones);                                                                      
-                    free(pcb);                    
+                    cambiar_estado(pcb, EXIT);
+                    free(pcb->path_instrucciones);
+                    free(pcb);
+                    break;
+                case SEG_FAULT:
+                    log_info(logger, "## (%d) finalizó su ejecución con motivo de SEG_FAULT", pcb->pid);
+                    cambiar_estado(pcb, EXIT);
+                    free(pcb->path_instrucciones);
+                    free(pcb);
                     break;                                                                                                
                 case CONTINUAR:                                                                  
                     log_info(logger, "## (%d) - Desalojado por fin de quantum", pcb->pid);         
@@ -184,13 +190,13 @@ void* atender_cliente(void* arg) {
                             int ms;                                                                    
                             recv(cliente_fd, &ms, sizeof(int), MSG_WAITALL);                           
                             pcb->param_io = ms;                                                        
-                            pcb->dir_logica = 0;                                                       
+                            pcb->dir_fisica = 0;                                                       
                         } else {                                                                       
-                            uint32_t dir_logica;                                                       
+                            uint32_t dir_fisica;                                                       
                             int tamanio;                                                             
-                            recv(cliente_fd, &dir_logica, sizeof(uint32_t), MSG_WAITALL);              
+                            recv(cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);              
                             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
-                            pcb->dir_logica = dir_logica;                                              
+                            pcb->dir_fisica = dir_fisica;                                              
                             pcb->param_io = tamanio;        
                         }                                                                              
                                                                                                         
@@ -289,7 +295,7 @@ void* atender_cliente(void* arg) {
                     t_operacion op = OP_WRITE_MEM;
                     send(fd_km, &op, sizeof(t_operacion), 0);
                     send(fd_km, &pid, sizeof(int), 0);
-                    send(fd_km, &pcb_stdin->dir_logica, sizeof(uint32_t), 0);
+                    send(fd_km, &pcb_stdin->dir_fisica, sizeof(uint32_t), 0);
                     send(fd_km, &tamanio, sizeof(int), 0);
                     send(fd_km, buffer, tamanio, 0);
                     uint32_t ok_km;
