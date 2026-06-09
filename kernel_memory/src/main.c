@@ -1,8 +1,9 @@
 #include "main.h"
-    t_log* logger;
-    t_config* config;
-    t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
-    int pid_a_buscar;
+
+t_log* logger;
+t_config* config;
+t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
+int pid_a_buscar;
 
 int main(int argc, char* argv[]) 
 {
@@ -97,202 +98,37 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
     return NULL;
 }
 
-void* manejar_cliente(void* arg) {
+void* manejar_cliente(void* arg)  {
     int cliente_fd = *(int*)arg;
     free(arg);
 
     t_modulo id_recibida;
+    t_operacion cod_op;
     int cpu_id;
 
     // El handhsake se hace solo 1 vez al principio de la conexion
     int bytes = recv(cliente_fd, &id_recibida, sizeof(int), MSG_WAITALL);
-
     if (bytes <= 0) {
         log_error(logger, "Error en handshake");
         close(cliente_fd);
         return NULL;
     }
-
     int recibido = 0;
     send(cliente_fd, &recibido, sizeof(int), 0);
     identificar_modulo(id_recibida, logger);
 
-    while (true) { // Donde el hilo se queda activo hasta que cliente se vaya
-        t_operacion cod_op; // creo variable cod op donde me va a indicar cual es la operacion a realizar gracias al switch. el op_code se declaro en el conexiones.h
-
-        int res= recv(cliente_fd, &cod_op, sizeof(t_operacion), MSG_WAITALL); //recibo la proxima operacion
-
-        if(res <= 0){ // si da menor que 0, es porque el cliente se desconecto, se corta el while por el break
-            log_info(logger, "Cliente desconectado del socket %d", cliente_fd);
-            break;
+    while (true) { // el hilo se queda activo hasta que el cliente se desconecta
+        int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);
+        if (operacion_rec <= 0) {
+            log_error(logger, "Cliente desconectado del socket %d", cliente_fd);
+            if (id_recibida == MOD_MEMORY_STICK) {
+                sacar_stick(cliente_fd);
+            }
+            close(cliente_fd);
+            return NULL;
         }
-
-        switch(id_recibida){
-
-            case MOD_KERNEL_SCHEDULER: {
-                if(cod_op==OP_GET_PROCESO){
-                    recibir_creacion_proceso(cliente_fd);
-                }
-                else if(cod_op == OP_GET_FREE_SPACE){
-                    uint32_t espacio = obtener_espacio_libre_mock();
-                    send(cliente_fd, &espacio, sizeof(uint32_t), 0);
-                    log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes", espacio);
-                }
-                else if (cod_op == OP_MEM_ALLOC) {
-                    int pid, tamanio;
-                    uint32_t id_segmento;
-                    recibir_datos_memoria_mock(cliente_fd, &pid, &id_segmento, &tamanio);
-                    log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d", pid, id_segmento, tamanio);
-        
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                }
-                else if(cod_op == OP_MEM_FREE){
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                }
-                else if(cod_op == OP_READ_MEM){
-                    int pid;
-                    uint32_t dir;
-                    int tam;
-
-                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
-
-                    log_info(logger,"## PID: %d - Lectura (KS) - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
-
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-
-                    char* bytes_vacios = calloc(1, tam); // es como el malloc pero lo limpia llenadolo de ceros \0
-                    send(cliente_fd, bytes_vacios, tam, 0);
-                    free(bytes_vacios);
-                }
-                else if(cod_op == OP_WRITE_MEM){
-                    int pid;
-                    uint32_t dir;
-                    int tam;
-
-                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
-
-                    char* bytes = malloc(tam); 
-                    recv(cliente_fd, bytes, tam, MSG_WAITALL);
-                    free(bytes);
-
-                    log_info(logger,"## PID: %d - Escritura (KS) - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
-
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                }
-                break;
-            }
-
-            case MOD_CPU:{
-                if (cod_op == OP_GET_INSTRUCCION){
-                    int pid_pedido;
-                    uint32_t pc_pedido;
-
-                    //recibo los datos de la CPU
-                    int res_pid = recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL);
-                    int res_pc = recv(cliente_fd, &pc_pedido, sizeof(uint32_t), MSG_WAITALL);
-
-                    if(res_pid <= 0 || res_pc <= 0) {
-                        log_error(logger, "Error al recibir pedido de instruccion");
-                        break;
-                    }
-
-                    //busco el proceso con la funcion definida antes
-                    t_proceso_control* proceso_encontrado = buscar_proceso_por_pid(pid_pedido);
-
-                    if(proceso_encontrado != NULL) {
-                        char* instruccion_texto = leer_instruccion_de_archivo(proceso_encontrado->path_instrucciones, pc_pedido);
-                    
-                        if(instruccion_texto != NULL){
-
-                            int tam = strlen(instruccion_texto) + 1; // saco el tamaño de la instruccion
-                            send(cliente_fd, &tam, sizeof(int), 0); //envio el tamaño
-                            send(cliente_fd, instruccion_texto, tam, 0); //envio la instruccion
-
-                            log_info(logger, "## PID: %d - Obtener instruccion: %d - Instruccion: %s", pid_pedido, pc_pedido, instruccion_texto);
-                            free (instruccion_texto);
-                        } else{
-                            log_error(logger, "No se encontro la instruccion para el PC %d", pc_pedido);
-                            send(cliente_fd, &(int){-1}, sizeof(int), 0); //envio -1 para indicar que no se encontro la instruccion
-                        }
-                    
-                    } else{
-                        log_error(logger, "Nose encontro el PID %d en la memoria", pid_pedido);
-                        send(cliente_fd, &(int){-1}, sizeof(int), 0); //envio -1 para indicar que no se encontro el proceso
-                    }   
-                } 
-                else if (cod_op == OP_GET_CONTEXT){ 
-                    int pid_pedido;
-                    if(recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL) > 0 ){ 
-                        t_proceso_control* proceso_a_buscar = buscar_proceso_por_pid(pid_pedido);
-
-                        if(proceso_a_buscar != NULL){
-                            send(cliente_fd, &(proceso_a_buscar->contexto), sizeof(t_contexto), 0);
-                            log_info(logger, "PID: %d - Contexto enviado a CPU", pid_pedido);
-                        } else{
-                            log_error(logger, "PID: %d no encontrado para enviar contexto", pid_pedido);
-                        }
-                    }
-                } 
-                else if (cod_op == OP_SET_CONTEXT){
-                    int pid_pedido;
-                    t_contexto nuevo_contexto;
-
-                    if(recv(cliente_fd, &pid_pedido, sizeof(int), MSG_WAITALL) > 0 && recv(cliente_fd, &nuevo_contexto, sizeof(t_contexto), MSG_WAITALL) > 0){
-                        t_proceso_control* proceso_a_buscar = buscar_proceso_por_pid(pid_pedido);
-                        if(proceso_a_buscar != NULL){
-                            proceso_a_buscar->contexto = nuevo_contexto;
-
-                            uint32_t ok = 0;
-                            send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                            log_info(logger, "PID: %d Contexto actualizado (Mock OK)", pid_pedido);
-                        }
-                    }
-                }
-                else if(cod_op == OP_READ_MEM){
-                    int pid;
-                    uint32_t dir;
-                    int tam;
-
-                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
-
-                    log_info(logger,"## PID: %d - Lectura - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
-
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                }
-                else if(cod_op == OP_WRITE_MEM){
-                    int pid; 
-                    uint32_t dir; 
-                    int tam;
-
-                    recibir_datos_memoria_mock(cliente_fd, &pid, &dir, &tam);
-
-                    log_info(logger, "## PID: %d - Escritura - Dir. Fisica: %u - Tamaño: %d", pid, dir, tam);
-
-                    uint32_t ok = 0;
-                    send(cliente_fd, &ok, sizeof(uint32_t), 0);
-                }
-
-
-                else{
-                    log_warning(logger, "Operacion desconocida de CPU");
-                }
-                    break;
-            }
-            case MOD_MEMORY_STICK:
-                break;
-
-            case MOD_SWAP:
-                break;
-
-            default:
-                break;
-        }   
-    }
+        manejar_operacion(cliente_fd, cod_op);
+    };
     close(cliente_fd);
     return NULL;
 }

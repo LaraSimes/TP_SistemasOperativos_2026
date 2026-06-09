@@ -75,6 +75,13 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
         case MOD_MEMORY_STICK:{
             int tamanio_ms_recibido;
             recv(cliente_fd, &tamanio_ms_recibido, sizeof(int), MSG_WAITALL);
+            if (tamanio_ms_recibido <= 0) {
+                log_error(logger, "Error recibiendo tamaño de Memory Stick");
+                close(cliente_fd);
+                return NULL;
+            }
+            agregar_stick(tamanio_ms_recibido, cliente_fd);
+            agregar_hueco_libre(tamanio_ms_recibido);
             log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido);
             break;
         }
@@ -87,4 +94,44 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
             log_warning(logger, "Módulo desconocido intentando conectarse");
             break;
     }
+}
+
+void agregar_stick(int tamanio_ms, int cliente_fd) {
+    t_sticks* nuevo_stick = malloc(sizeof(t_sticks));
+    phpthread_mutex_lock(&mutex_lista_sticks);
+    t_sticks* stick_encontrado = list_get(sticks_conectados, list_size(sticks_conectados) - 1);
+    nuevo_stick->base = stick_encontrado -> base + stick_encontrado->tamaño;
+    nuevo_stick->tamaño = tamanio_ms;
+    nuevo_stick->mstick_fd = cliente_fd;
+    list_add(sticks_conectados, nuevo_stick);
+    pthread_mutex_unlock(&mutex_lista_sticks);
+};
+
+void agregar_hueco_libre(int tamanio_ms) {
+    phtread_mutex_lock(&mutex_lista_huecos);
+    phtread_mutex_lock(&mutex_lista_segmentos);
+    t_hueco_libre* ultimo_hueco = list_get(huecos_libres, list_size(huecos_libres) - 1);
+    t_segmento* ultimo_segmento = list_get(segmentos, list_size(segmentos) - 1);
+    if (ultimo_hueco->base > ultimo_segmento->base){
+        ultimo_hueco->tamaño = ultimo_hueco->tamaño + tamanio_ms;
+    }
+    else{
+        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
+        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamaño;
+        nuevo_hueco->tamaño = tamanio_ms;
+        list_add(huecos_libres, nuevo_hueco);
+    }
+    pthread_mutex_unlock(&mutex_lista_segmentos);
+    pthread_mutex_unlock(&mutex_lista_huecos);
+};
+void sacar_stick(int cliente_fd) {
+    pthread_mutex_lock(&mutex_lista_sticks);
+    for (int i = 0; i < list_size(sticks_conectados); i++) {
+        t_sticks* stick = list_get(sticks_conectados, i);
+        if (stick->mstick_fd == cliente_fd) {
+            list_remove_and_destroy_element(sticks_conectados, i, (void*)free);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_lista_sticks);
 }
