@@ -246,9 +246,11 @@ void* atender_cliente(void* arg) {
                                     log_info(logger, "## (%d) Toma el Mutex %s", pcb->pid, nombre);                                                                                        
                                     encolar_ready(pcb);                                                                                                                                  
                                 } else {                                                                                                                                                   
-                                    queue_push(m->cola_espera, pcb);                                                                                                                     
-                                    pthread_mutex_unlock(&mutex_mutex);                                                                                                                    
-                                    encolar_block(pcb);                                                                                                                                  
+                                    int owner_pid = m->owner_pid;
+                                    queue_push(m->cola_espera, pcb);
+                                    pthread_mutex_unlock(&mutex_mutex);
+                                    encolar_block(pcb);
+                                    aplicar_herencia_prioridad(owner_pid, pcb->prioridad);                                                                                                                                
                                 }                                                                                                                                                          
                                 break;
                                                                                                                                                                                             
@@ -268,6 +270,7 @@ void* atender_cliente(void* arg) {
                                         pthread_mutex_unlock(&mutex_mutex);
                                     }
                                 }
+                                pcb->prioridad = pcb->prioridad_original;
                                 encolar_ready(pcb);
                                 break;
                           }

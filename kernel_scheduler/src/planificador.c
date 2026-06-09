@@ -50,6 +50,7 @@ t_pcb* crear_pcb(int pid, char* path, int prioridad) {
     t_pcb* pcb = malloc(sizeof(t_pcb));
     pcb->pid = pid;
     pcb->prioridad = prioridad;
+    pcb->prioridad_original = prioridad;
     pcb->estado = NEW;
     pcb->path_instrucciones = strdup(path);
     pcb->param_io = 0;
@@ -276,3 +277,51 @@ t_mutex* crear_mutex(char* nombre) {
     pthread_mutex_unlock(&mutex_mutex);
     return m;                                                                      
 } 
+
+void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
+
+    // Caso 1: owner está EXEC en una CPU
+    pthread_mutex_lock(&mutex_cpus);
+    for (int i = 0; i < list_size(lista_cpus); i++) {
+        t_cpu* cpu = list_get(lista_cpus, i);
+        if (!cpu->libre && cpu->pcb_actual != NULL && cpu->pcb_actual->pid == owner_pid) {
+            if (nueva_prioridad < cpu->pcb_actual->prioridad)
+                cpu->pcb_actual->prioridad = nueva_prioridad;
+            pthread_mutex_unlock(&mutex_cpus);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&mutex_cpus);
+
+    // Caso 2: owner está en READY — moverlo a la cola correcta
+    pthread_mutex_lock(&mutex_ready);
+    for (int i = 0; i < num_colas; i++) {
+        t_list* elementos = colas_ready[i]->elements;
+        for (int j = 0; j < list_size(elementos); j++) {
+            t_pcb* pcb = list_get(elementos, j);
+            if (pcb->pid == owner_pid) {
+                if (nueva_prioridad < pcb->prioridad && nueva_prioridad < num_colas) {
+                    list_remove(elementos, j);
+                    pcb->prioridad = nueva_prioridad;
+                    queue_push(colas_ready[nueva_prioridad], pcb);
+                }
+                pthread_mutex_unlock(&mutex_ready);
+                return;
+            }
+        }
+    }
+    pthread_mutex_unlock(&mutex_ready);
+
+    // Caso 3: owner está en BLOCK (tiene el mutex pero espera IO)
+    pthread_mutex_lock(&mutex_block);
+    for (int i = 0; i < list_size(cola_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_block->elements, i);
+        if (pcb->pid == owner_pid) {
+            if (nueva_prioridad < pcb->prioridad)
+                pcb->prioridad = nueva_prioridad;
+            pthread_mutex_unlock(&mutex_block);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&mutex_block);
+}

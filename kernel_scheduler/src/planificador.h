@@ -29,8 +29,8 @@ typedef struct {
     t_tipo_io tipo_io_pendiente;
     int param_io;           // ms para SLEEP, cantidad para STDIN/STDOUT
     uint32_t dir_fisica;    // dirección física para STDIN/STDOUT
-    // fd de la CPU que despachó este proceso (para syscalls de memoria)
-    int fd_cpu_dispatch;
+    int fd_cpu_dispatch;    // fd de la CPU que despachó este proceso (para syscalls de memoria)
+    int prioridad_original;
 } t_pcb;
 
 // CPU registrada
@@ -97,5 +97,6 @@ t_io_registrada* buscar_io_por_tipo(t_tipo_io tipo);
 t_mutex* buscar_mutex(char* nombre);
 t_mutex* crear_mutex(char* nombre);
 t_cpu* buscar_cpu_por_id(int id);
+void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad);
 
 #endif
