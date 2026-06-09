@@ -292,6 +292,45 @@ void* atender_cliente(void* arg) {
                         registrar_proceso_en_km(nuevo_pid, hijo->path_instrucciones);
                         encolar_ready(hijo);
                         encolar_ready(pcb);
+                     } else if (tipo_syscall == SYSCALL_MEM_ALLOC) {
+                        log_info(logger, "## (%d) - Solicitó syscall: MEM_ALLOC", pcb->pid);
+
+                        int seg_id, tamanio;
+                        recv(cliente_fd, &seg_id, sizeof(int), MSG_WAITALL);
+                        recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
+
+                        pthread_mutex_lock(&mutex_km);
+                        t_operacion op = OP_MEM_ALLOC;
+                        send(fd_km, &op, sizeof(t_operacion), 0);
+                        send(fd_km, &pcb->pid, sizeof(int), 0);
+                        uint32_t seg_id_u = (uint32_t)seg_id;
+                        send(fd_km, &seg_id_u, sizeof(uint32_t), 0);
+                        send(fd_km, &tamanio, sizeof(int), 0);
+                        uint32_t ok;
+                        recv(fd_km, &ok, sizeof(uint32_t), MSG_WAITALL);
+                        pthread_mutex_unlock(&mutex_km);
+
+                        log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d", pcb->pid, seg_id, tamanio);
+                        encolar_ready(pcb);
+
+                     } else if (tipo_syscall == SYSCALL_MEM_FREE) {
+                        log_info(logger, "## (%d) - Solicitó syscall: MEM_FREE", pcb->pid);
+
+                        int seg_id;
+                        recv(cliente_fd, &seg_id, sizeof(int), MSG_WAITALL);
+
+                        pthread_mutex_lock(&mutex_km);
+                        t_operacion op = OP_MEM_FREE;
+                        send(fd_km, &op, sizeof(t_operacion), 0);
+                        send(fd_km, &pcb->pid, sizeof(int), 0);
+                        uint32_t seg_id_u = (uint32_t)seg_id;
+                        send(fd_km, &seg_id_u, sizeof(uint32_t), 0);
+                        uint32_t ok;
+                        recv(fd_km, &ok, sizeof(uint32_t), MSG_WAITALL);
+                        pthread_mutex_unlock(&mutex_km);
+
+                        log_info(logger, "## PID: %d - Segmento Liberado %d", pcb->pid, seg_id);
+                        encolar_ready(pcb);
                      }
                       break;
                   }                                       
