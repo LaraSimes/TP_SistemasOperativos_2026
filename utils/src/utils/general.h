@@ -55,8 +55,16 @@ typedef struct {
     uint32_t ecx;
     uint32_t edx;
     uint32_t si;   
-    uint32_t di;   
+    uint32_t di;
+    t_list* segmentos; 
 } t_contexto;
+
+typedef struct {
+    uint32_t id_segmento;
+    uint32_t base;
+    uint32_t tamanio;
+} t_segmento;
+//tabla de segmentos por proceso
 
 typedef enum {
     CONTINUAR    = 0,
