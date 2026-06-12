@@ -4,6 +4,7 @@ t_log* logger;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
 int pid_a_buscar;
+bool memoria_corrupta = false;
 
 int main(int argc, char* argv[]) 
 {
@@ -104,7 +105,6 @@ void* manejar_cliente(void* arg)  {
 
     t_modulo id_recibida;
     t_operacion cod_op;
-    int cpu_id;
 
     // El handhsake se hace solo 1 vez al principio de la conexion
     int bytes = recv(cliente_fd, &id_recibida, sizeof(int), MSG_WAITALL);
@@ -118,11 +118,14 @@ void* manejar_cliente(void* arg)  {
     identificar_modulo(id_recibida, logger);
 
     while (true) { // el hilo se queda activo hasta que el cliente se desconecta
+        if (memoria_corrupta) {
+            break;
+        }
         int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);
         if (operacion_rec <= 0) {
             log_error(logger, "Cliente desconectado del socket %d", cliente_fd);
             if (id_recibida == MOD_MEMORY_STICK) {
-                sacar_stick(cliente_fd);
+                memoria_corrupta = true;
             }
             close(cliente_fd);
             return NULL;
