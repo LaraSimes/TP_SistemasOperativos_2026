@@ -18,6 +18,7 @@ int main(int argc, char *argv[])
 
     t_config_valores valores; // Declara struct en el stack
     cargar_informacion_configuracion(config, &valores, logger);
+    valores.segment_max_size = config_get_int_value(config, "SEGMENT_MAX_SIZE");
 
     signal(SIGPIPE, SIG_IGN); // Preguntar a IA
 
@@ -138,7 +139,7 @@ while (1) {
         char archivo_proc[256] = {0};
         uint32_t dir_logica = 0;
         char nombre_mutex[32] = {0};
-        int resultado = ejecutar(instruccion, &ctx, logger, pid, fd_km, &tipo_io, &param_io, nombre_mutex, &dir_logica, &seg_id, archivo_proc);
+        int resultado = ejecutar(instruccion, &ctx, logger, pid, fd_km, &tipo_io, &param_io, nombre_mutex, &dir_logica, &seg_id, archivo_proc, valores.segment_max_size);
         free(instruccion);
 
         if (resultado == FIN_PROCESO || resultado == SYSCALL || resultado == SEG_FAULT) {
@@ -157,6 +158,7 @@ while (1) {
             break;
         }
     }
+    list_destroy_and_destroy_elements(ctx.segmentos, free);
 }
 
 

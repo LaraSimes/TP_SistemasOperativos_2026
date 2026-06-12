@@ -6,7 +6,7 @@ void devolver_a_ks(int fd_ks, int pid, int resultado, t_contexto* ctx, int tipo_
   send(fd_ks, ctx, sizeof(t_contexto), 0);
 
   if (resultado == SYSCALL) {
-    end(fd_ks, &tipo_io, sizeof(int), 0);                                        
+    send(fd_ks, &tipo_io, sizeof(int), 0);                                        
                                                                                    
     if (tipo_io == SYSCALL_IO_SLEEP) {                                           
       send(fd_ks, &param_io, sizeof(int), 0);

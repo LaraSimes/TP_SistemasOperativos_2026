@@ -1,4 +1,6 @@
 #include "main.h"
+#include "mmu.c"
+
 
 uint32_t get_registro(t_contexto* ctx, char* nombre){
     if (strcmp(nombre, "AX") == 0)  return ctx->ax;
@@ -36,14 +38,14 @@ static int sizeof_registro(char* nombre) {
     return 4;
 }
 
-int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_km, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out, int* seg_id_out, char archivo_proc_out[256]){ //instrucciones que no usan mmu
+int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_km, int* tipo_io_out, int* param_io_out, char nombre_mutex_out[32], uint32_t* dir_logica_out, int* seg_id_out, char archivo_proc_out[256], int seg_max){ //instrucciones que no usan mmu
     
     char nombre[32] = {0};
     char arg1[32]   = {0};
     char arg2[32]   = {0};
     sscanf(instruccion, "%s %s %s", nombre, arg1, arg2);
 
-    //LOG OOBLIGATORIO
+    //LOG OBLIGATORIO
     log_info(logger, "## PID: %d - Ejecutando: %s - %s %s", pid, nombre, arg1, arg2);
     
     //NOOP
@@ -93,13 +95,15 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
     //MOV_IN
     if (strcmp(nombre, "MOV_IN") == 0) {
-        uint32_t dir_logica = ctx->si;
         int size = sizeof_registro(arg1);
+        uint32_t dir_fisica; 
+
+        if (traducir(ctx, ctx->si, size, seg_max, &dir_fisica) != 0) return SEG_FAULT;
 
         t_operacion op = OP_READ_MEM;
         send(fd_km, &op,         sizeof(t_operacion), 0);
         send(fd_km, &pid,        sizeof(int),         0);
-        send(fd_km, &dir_logica, sizeof(uint32_t),    0);
+        send(fd_km, &dir_fisica, sizeof(uint32_t),    0);
         send(fd_km, &size,       sizeof(int),         0);
 
         int ok;
@@ -110,21 +114,23 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         recv(fd_km, &valor, size, MSG_WAITALL);
         set_registro(ctx, arg1, valor);
 
-        log_info(logger, "PID: %d - Acción: LEER - Dirección Física: %u - Valor: %u", pid, dir_logica, valor);
+        log_info(logger, "PID: %d - Acción: LEER - Dirección Física: %u - Valor: %u", pid, dir_fisica, valor);
         ctx->pc++;
         return CONTINUAR;
     }
 
     //MOV_OUT
     if (strcmp(nombre, "MOV_OUT") == 0) {
-        uint32_t dir_logica = ctx->di;
         int size = sizeof_registro(arg1);
         uint32_t valor = get_registro(ctx, arg1);
+        uint32_t dir_fisica; 
+
+        if (traducir(ctx, ctx->di, size, seg_max, &dir_fisica) != 0) return SEG_FAULT;
 
         t_operacion op = OP_WRITE_MEM;
         send(fd_km, &op,         sizeof(t_operacion), 0);
         send(fd_km, &pid,        sizeof(int),         0);
-        send(fd_km, &dir_logica, sizeof(uint32_t),    0);
+        send(fd_km, &dir_fisica, sizeof(uint32_t),    0);
         send(fd_km, &size,       sizeof(int),         0);
         send(fd_km, &valor,      size,                0);
 
@@ -132,45 +138,48 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
         if (ok != 1) return SEG_FAULT;
 
-        log_info(logger, "PID: %d - Acción: ESCRIBIR - Dirección Física: %u - Valor: %u", pid, dir_logica, valor);
+        log_info(logger, "PID: %d - Acción: ESCRIBIR - Dirección Física: %u - Valor: %u", pid, dir_fisica, valor);
         ctx->pc++;
         return CONTINUAR;
     }
 
     //COPY_MEM
     if (strcmp(nombre, "COPY_MEM") == 0) {
-        int size = (int)get_registro(ctx, arg1);
-        uint32_t dir_src = ctx->si;
-        uint32_t dir_dst = ctx->di;
+    int size = (int)get_registro(ctx, arg1);
 
-        t_operacion op = OP_READ_MEM;
-        send(fd_km, &op,      sizeof(t_operacion), 0);
-        send(fd_km, &pid,     sizeof(int),         0);
-        send(fd_km, &dir_src, sizeof(uint32_t),    0);
-        send(fd_km, &size,    sizeof(int),         0);
+    uint32_t dir_fisica_src, dir_fisica_dst;
+    if (traducir(ctx, ctx->si, size, seg_max, &dir_fisica_src) != 0) return SEG_FAULT;
+    if (traducir(ctx, ctx->di, size, seg_max, &dir_fisica_dst) != 0) return SEG_FAULT;
 
-        int ok;
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-        if (ok != 1) return SEG_FAULT;
+    // READ desde src
+    t_operacion op = OP_READ_MEM;
+    send(fd_km, &op,             sizeof(t_operacion), 0);
+    send(fd_km, &pid,            sizeof(int),         0);
+    send(fd_km, &dir_fisica_src, sizeof(uint32_t),    0);
+    send(fd_km, &size,           sizeof(int),         0);
 
-        uint8_t* buffer = malloc(size);
-        recv(fd_km, buffer, size, MSG_WAITALL);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    if (ok != 1) return SEG_FAULT;
 
-        op = OP_WRITE_MEM;
-        send(fd_km, &op,      sizeof(t_operacion), 0);
-        send(fd_km, &pid,     sizeof(int),         0);
-        send(fd_km, &dir_dst, sizeof(uint32_t),    0);
-        send(fd_km, &size,    sizeof(int),         0);
-        send(fd_km, buffer,   size,                0);
-        free(buffer);
+    uint8_t* buffer = malloc(size);
+    recv(fd_km, buffer, size, MSG_WAITALL);
 
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-        if (ok != 1) return SEG_FAULT;
+    // WRITE hacia dst
+    op = OP_WRITE_MEM;
+    send(fd_km, &op,             sizeof(t_operacion), 0);
+    send(fd_km, &pid,            sizeof(int),         0);
+    send(fd_km, &dir_fisica_dst, sizeof(uint32_t),    0);
+    send(fd_km, &size,           sizeof(int),         0);
+    send(fd_km, buffer,          size,                0);
+    free(buffer);
 
-        ctx->pc++;
-        return CONTINUAR;
-    }
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    if (ok != 1) return SEG_FAULT;
 
+    ctx->pc++;
+    return CONTINUAR;
+}
     //SYSCALLS
 
     //SLEEP
