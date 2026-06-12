@@ -124,14 +124,4 @@ void agregar_hueco_libre(int tamanio_ms) {
     pthread_mutex_unlock(&mutex_lista_segmentos);
     pthread_mutex_unlock(&mutex_lista_huecos);
 };
-void sacar_stick(int cliente_fd) {
-    pthread_mutex_lock(&mutex_lista_sticks);
-    for (int i = 0; i < list_size(sticks_conectados); i++) {
-        t_sticks* stick = list_get(sticks_conectados, i);
-        if (stick->mstick_fd == cliente_fd) {
-            list_remove_and_destroy_element(sticks_conectados, i, (void*)free);
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_lista_sticks);
-}
+
