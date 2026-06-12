@@ -22,6 +22,7 @@
 extern uint8_t* memoria;
 extern int memory_delay;
 extern pthread_mutex_t mutex_memoria;
+extern int tamanio_memoryStick;
 
 void* manejar_km(void* arg);
 void  manejar_cpu_thread(int* arg);

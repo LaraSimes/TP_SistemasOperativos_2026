@@ -25,9 +25,9 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
-    int tamanio = atoi(argv[2]);
-    memoria = malloc(tamanio);
-    memset(memoria, 0, tamanio);
+    tamanio_memoryStick = atoi(argv[2]);
+    memoria = malloc(tamanio_memoryStick);
+    memset(memoria, 0, tamanio_memoryStick);
 
    logger = iniciar_logger(MOD_MEMORY_STICK, LOG_LEVEL_INFO);
    obtenerConfig(argv[1]);
@@ -49,7 +49,7 @@ int main(int argc, char* argv[]) {
 
     log_info(logger, "## Conectado a Kernel Memory");
 
-    send(socket_kernelMemory, &tamanio, sizeof(int), 0);
+    send(socket_kernelMemory, &tamanio_memoryStick, sizeof(int), 0);
 
    
     pthread_t hilo_km;
