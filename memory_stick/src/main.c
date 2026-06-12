@@ -40,12 +40,14 @@ int main(int argc, char* argv[]) {
     log_destroy(logger); 
     return EXIT_FAILURE;
    }
-   //handshakear(socket_kernelMemory,logger,MOD_KERNEL_MEMORY);
+   //handshake(socket_kernelMemory,logger,MOD_KERNEL_MEMORY);
     if (!handshake(socket_kernelMemory, logger, MOD_MEMORY_STICK, MOD_KERNEL_MEMORY)) {
         log_error(logger, "Fallo el handshake con memoria");
         close(socket_kernelMemory);
         return EXIT_FAILURE;
     } 
+
+    log_info(logger, "## Conectado a Kernel Memory");
 
     send(socket_kernelMemory, &tamanio, sizeof(int), 0);
 
