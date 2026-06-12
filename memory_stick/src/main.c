@@ -199,12 +199,10 @@ void* manejar_km(void* arg) {
             log_warning(logger, "KM desconectado");
             break;
         }
-
+        //LECTURA
         if (op == OP_READ_MEM) {
-            int      pid;
             uint32_t dir_fisica;
             int      size;
-            recv(fd, &pid,       sizeof(int),       MSG_WAITALL);
             recv(fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(fd, &size,      sizeof(int),       MSG_WAITALL);
 
@@ -215,12 +213,10 @@ void* manejar_km(void* arg) {
             pthread_mutex_unlock(&mutex_memoria);
 
             log_info(logger, "## Lectura de %d bytes", size);
-
+        //ESCRITURA
         } else if (op == OP_WRITE_MEM) {
-            int      pid;
             uint32_t dir_fisica;
             int      size;
-            recv(fd, &pid,        sizeof(int),      MSG_WAITALL);
             recv(fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(fd, &size,       sizeof(int),      MSG_WAITALL);
 
