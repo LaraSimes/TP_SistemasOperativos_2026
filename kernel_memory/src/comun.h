@@ -22,11 +22,22 @@ typedef struct {
     uint32_t tamanio;
 } t_hueco_libre;
 
+typedef struct {
+    int id_stick;
+    uint32_t base;
+    uint32_t tamanio;
+}t_stick; //estructura para manejo de sticks
+
 pthread_mutex_t mutex_lista_procesos;
 pthread_mutex_t mutex_lista_huecos;
 pthread_mutex_t mutex_lista_segmentos;
+pthread_mutex_t mutex_lista_sticks;
 extern t_list* procesos_activos;
 extern t_list* huecos_libres;
 extern t_list* segmentos;
+extern t_list* sticks;
+extern int fd_KS;
+extern bool memoria_corrupta;
+extern int max_segmento;
 
 

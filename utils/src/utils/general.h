@@ -63,8 +63,8 @@ typedef struct {
     uint32_t id_segmento;
     uint32_t base;
     uint32_t tamanio;
-} t_segmento;
-//tabla de segmentos por proceso
+} t_segmento;//tabla de segmentos por proceso
+
 
 typedef enum {
     CONTINUAR    = 0,
@@ -84,6 +84,14 @@ typedef enum {
     SYSCALL_MEM_FREE     = 7,
     SYSCALL_INIT_PROC    = 8,
 } t_tipo_syscall;
+
+typedef enum {
+    OK = 0,
+    FRAGMENTACION_EXT = 1,
+    MEMORIA_CORRUPTA=2,
+    PID_NOT_FOUND =3;
+    SEGMENTO_EXCEDIDO =4;
+} t_respuestas_KM;
 
 
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);

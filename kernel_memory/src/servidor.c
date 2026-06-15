@@ -60,6 +60,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
     switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
             log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d", cliente_fd);
+            fd_KS = cliente_fd;
             break;
         
         case MOD_CPU:
@@ -80,7 +81,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
                 close(cliente_fd);
                 return NULL;
             }
-            agregar_hueco_libre(tamanio_ms_recibido);
+            agregar_hueco_libre(tamanio_ms_recibido, cliente_fd);
             log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido);
             break;
         }
@@ -95,11 +96,38 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
     }
 }
 
-void agregar_hueco_libre(int tamanio_ms) {
+void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
+    t_stick nuevo_stick = malloc (sizeof(t_stick));
     pthread_mutex_lock(&mutex_lista_huecos);
-    phtread_mutex_lock(&mutex_lista_segmentos);
-    t_hueco_libre* ultimo_hueco = list_get(huecos_libres, list_size(huecos_libres) - 1);
-    t_segmento* ultimo_segmento = list_get(segmentos, list_size(segmentos) - 1);
+    pthread_mutex_lock(&mutex_lista_segmentos);
+    if (is_empty(huecos_libres)) {
+        if (is_empty(segmentos)){
+        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
+        nuevo_hueco->base = 0;
+        nuevo_hueco->tamaño = tamanio_ms;
+        list_add(huecos_libres, nuevo_hueco);
+        pthread_mutex_unlock(&mutex_lista_segmentos);
+        pthread_mutex_unlock(&mutex_lista_huecos);
+        return;
+        }
+        t_segmento* ultimo_segmento = list_get_maximum(segmentos, comparar_bases_segmento);
+        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
+        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamaño;
+        nuevo_hueco->tamaño = tamanio_ms;
+        list_add(huecos_libres, nuevo_hueco);
+        pthread_mutex_unlock(&mutex_lista_segmentos);
+        pthread_mutex_unlock(&mutex_lista_huecos);
+        return;
+    }
+    if (is_empty(segmentos)) {
+        t_hueco_libre* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
+        ultimo_hueco->tamaño = ultimo_hueco->tamaño + tamanio_ms;
+        pthread_mutex_unlock(&mutex_lista_segmentos);
+        pthread_mutex_unlock(&mutex_lista_huecos);
+        return;
+    }
+    t_hueco_libre* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
+    t_segmento* ultimo_segmento = list_get_maximum(segmentos, comparar_bases_segmento);
     if (ultimo_hueco->base > ultimo_segmento->base){
         ultimo_hueco->tamaño = ultimo_hueco->tamaño + tamanio_ms;
     }
@@ -111,16 +139,40 @@ void agregar_hueco_libre(int tamanio_ms) {
     }
     pthread_mutex_unlock(&mutex_lista_segmentos);
     pthread_mutex_unlock(&mutex_lista_huecos);
+    pthread_mutex_lock(&mutex_lista_sticks);
+    t_stick ultimo_stick = list_get (sticks, list_size(sticks)-1);
+    if (ultimo_stick == NULL){
+        nuevo_stick -> id_stick = stick_fd;
+        nuevo_stick -> base = 0;
+        nuevo_stick -> tamanio = tamanio_ms;
+        list_add(sticks, nuevo_stick);
+        pthread_mutex_unlock(&mutex_lista_sticks);
+        return;
+    }
+    nuevo_stick -> id_stick = stick_fd;
+    nuevo_stick -> base = ultimo_stick -> base + ultimo_stick-> tamanio;
+    nuevo_stick -> tamanio = tamanio_ms;
+    list_add(sticks, nuevo_stick);
+    pthread_mutex_unlock(&mutex_lista_sticks);
 };
+
 void sacar_stick(int cliente_fd) {
     pthread_mutex_lock(&mutex_lista_sticks);
-    for (int i = 0; i < list_size(sticks_conectados); i++) {
-        t_sticks* stick = list_get(sticks_conectados, i);
+    for (int i = 0; i < list_size(sticks); i++) {
+        t_stick* stick = list_get(sticks, i);
         if (stick->mstick_fd == cliente_fd) {
-            list_remove_and_destroy_element(sticks_conectados, i, (void*)free);
-            break;
+            list_remove_and_destroy_element(sticks, i, (void*)free);
+            memoria_corrupta = true;
+            pthread_mutex_unlock(&mutex_lista_sticks);
+            return;
         }
     }
     pthread_mutex_unlock(&mutex_lista_sticks);
+}
 
+void* comparar_bases_hueco(t_hueco_libre* h1, t_hueco_libre* h2) {
+    return h1->base >= h2->base ? h1 : h2;
+}
+void* comparar_bases_segmento(t_segmento* s1, t_segmento* s2) {
+    return s1->base >= s2->base ? s1 : s2;
 }

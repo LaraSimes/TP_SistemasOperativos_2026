@@ -4,7 +4,7 @@ t_log* logger;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
 int pid_a_buscar;
-bool memoria_corrupta = false;
+int max_segmento;
 
 int main(int argc, char* argv[]) 
 {
@@ -12,12 +12,15 @@ int main(int argc, char* argv[])
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
     }
+    memoria_corrupta = false;
 
     t_config_valores config_memoria;
 
     config=iniciar_config(argv[1]);
 
     cargar_informacion_configuracion(config, &config_memoria);
+
+    max_segmento = config_memoria.segment_max_size;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 
@@ -119,16 +122,23 @@ void* manejar_cliente(void* arg)  {
 
     while (true) { // el hilo se queda activo hasta que el cliente se desconecta
         if (memoria_corrupta) {
+            t_errores_KM aviso=MEMORIA_CORRUPTA;
+            int aviso = send (fd_KS,&aviso, sizeof(t_errores_KM),0);
             break;
         }
         int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);
         if (operacion_rec <= 0) {
             log_error(logger, "Cliente desconectado del socket %d", cliente_fd);
             if (id_recibida == MOD_MEMORY_STICK) {
-                memoria_corrupta = true;
+                sacar_stick(cliente_fd);
             }
             close(cliente_fd);
             return NULL;
+        }
+        if (memoria_corrupta) {
+            t_errores_KM aviso=MEMORIA_CORRUPTA;
+            int aviso = send (fd_KS,&aviso, sizeof(t_errores_KM),0);
+            break;
         }
         manejar_operacion(cliente_fd, cod_op);
     };
