@@ -60,7 +60,7 @@ typedef struct {
 } t_contexto;
 
 typedef struct {
-    uint32_t id_segmento;
+    int id_segmento;
     uint32_t base;
     uint32_t tamanio;
 } t_segmento;//tabla de segmentos por proceso
@@ -87,10 +87,11 @@ typedef enum {
 
 typedef enum {
     OK = 0,
-    FRAGMENTACION_EXT = 1,
-    MEMORIA_CORRUPTA=2,
-    PID_NOT_FOUND =3;
-    SEGMENTO_EXCEDIDO =4;
+    FRAGMENTACION_EXT = -1,
+    MEMORIA_CORRUPTA= -2,
+    PID_NOT_FOUND= -3,
+    SEGMENTO_EXCEDIDO= -4,
+    SEGMENTO_NOT_FOUND= -5,
 } t_respuestas_KM;
 
 
