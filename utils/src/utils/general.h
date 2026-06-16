@@ -92,7 +92,7 @@ typedef enum {
     PID_NOT_FOUND= -3,
     SEGMENTO_EXCEDIDO= -4,
     SEGMENTO_NOT_FOUND= -5,
-} t_respuestas_KM;
+} t_rsp_KM;
 
 
 t_log * iniciar_logger (t_modulo identificador, t_log_level nivel);

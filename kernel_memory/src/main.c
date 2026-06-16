@@ -4,7 +4,7 @@ t_log* logger;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
 int pid_a_buscar;
-int max_segmento;
+uint32_t max_segmento;
 
 int main(int argc, char* argv[]) 
 {
@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 
     cargar_informacion_configuracion(config, &config_memoria);
 
-    max_segmento = config_memoria.segment_max_size;
+    max_segmento =(uint32_t*) config_memoria.segment_max_size;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 

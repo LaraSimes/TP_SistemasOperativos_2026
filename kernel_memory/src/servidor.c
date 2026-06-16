@@ -142,7 +142,7 @@ void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
     pthread_mutex_lock(&mutex_lista_sticks);
     t_stick ultimo_stick = list_get (sticks, list_size(sticks)-1);
     if (ultimo_stick == NULL){
-        nuevo_stick -> id_stick = stick_fd;
+        nuevo_stick -> fd_stick = stick_fd;
         nuevo_stick -> base = 0;
         nuevo_stick -> tamanio = tamanio_ms;
         list_add(sticks, nuevo_stick);

@@ -8,17 +8,16 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &tam_path, sizeof(int), MSG_WAITALL);
             char* path = malloc(tam_path);
             recv(cliente_fd, path, tam_path, MSG_WAITALL);
-            crear_proceso(pid, path);
-            t_respuestas_KM response = revisar_memoria();
-            send(socket_cliente, &response, sizeof(response), 0);
+            t_rsp_KM resultado= crear_proceso(pid, path);
+            send(socket_cliente, &resultado, sizeof(resultado), 0);
             log_info(logger,"## PID: %d - Proceso Creado", pid);
             break;
 
         case OP_GET_FREE_SPACE:
             uint32_t espacio = obtener_espacio_libre();
-            t_respuestas_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA){
-                send(cliente_fd, &memoria, sizeof(memoria), 0);
+            t_rsp_KM memoria = revisar_memoria();
+            if (memoria==MEMORIA_CORRUPTA) {
+                send(fd_KS,&memoria, sizeof(memoria),0);
                 break;
             }
             send(cliente_fd, &espacio, sizeof(uint32_t), 0);
@@ -26,25 +25,19 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             break;
 
         case OP_MEM_ALLOC:
-            int pid, tamanio, id_segmento;
+            int pid, id_segmento;
+            uint32_t tamanio;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
-            recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
+            recv(cliente_fd, &tamanio, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
-            t_proceso_control* proceso = buscar_proceso_por_pid(pid);
-            if (proceso == NULL) {
-                log_error(logger, "PID: %d no encontrado para crear segmento", pid);
-                t_respuestas_KM res = PID_NOT_FOUND;
-                send(cliente_fd, &res, sizeof(res), 0);
-                break;
-            }
             t_segmento* seg = crear_segmento(id_segmento, tamanio);
-            t_respuestas_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA){
-                send(cliente_fd, &memoria, sizeof(memoria), 0);
+            t_rsp_KM resultado = agregar_segmento(pid, seg);
+            t_rsp_KM memoria = revisar_memoria();
+            if (memoria==MEMORIA_CORRUPTA) {
+                send(fd_KS,&memoria, sizeof(memoria),0);
                 free(seg);
                 break;
             }
-            t_respuestas_KM resultado = agregar(proceso, seg);
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
 
@@ -52,54 +45,50 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             int pid, id_segmento;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
-            t_proceso_control* proceso = buscar_proceso_por_pid(pid);
-            if (proceso == NULL) {
-                log_error(logger, "PID: %d no encontrado para crear segmento", pid);
-                t_respuestas_KM res = PID_NOT_FOUND;
-                send(cliente_fd, &res, sizeof(res), 0);
+            t_rsp_KM respuesta = eliminar_segmento(proceso,id_segmento);
+            t_rsp_KM memoria = revisar_memoria();
+            if (memoria==MEMORIA_CORRUPTA) {
+                send(fd_KS,&memoria, sizeof(memoria),0)
                 break;
             }
-            t_respuestas_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA){
-                send(cliente_fd, &memoria, sizeof(memoria), 0);
-                free(seg);
-                break;
-            }
-            t_respuesta_KM respuesta = eliminar_segmento(proceso,id_segmento);
             send (cliente_fd, &respuesta,sizeof(respuesta),0);
+            break;
             
         case OP_READ_MEM:
-            int pid_lec;
-            uint32_t dir_lec;
-            int tam_lec;
-
-            recibir_datos_memoria_mock(cliente_fd, &pid_lec, &dir_lec, &tam_lec);
-            if (memoria_corrupta) {
-                log_error(logger, "Memoria Corrupta");
-                char* error_msg = "Memoria Corrupta";
-                send(cliente_fd, error_msg, strlen(error_msg) + 1, 0);
+            int pid;
+            uint32_t tamanio, dir_fisica;
+            recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
+            recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
+            recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
+            uint8_t *leido=malloc(tamanio);
+            t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,pid);
+            t_rsp_KM memoria = revisar_memoria();
+            if (memoria==MEMORIA_CORRUPTA){
+                send(fd_KS, &memoria, sizeof(memoria), 0);
+                free(leido);
                 break;
             }
-            else {
-
-                log_info(logger,"## PID: %d - Lectura - Dir. Fisica: %u - Tamaño: %d", pid_lec, dir_lec, tam_lec);
-                uint32_t ok_lectura = 0;
-                send(cliente_fd, &ok_lectura, sizeof(uint32_t), 0);
-                break;
-            }
-        case OP_WRITE_MEM:
-            int pid_esc; 
-            uint32_t dir_esc; 
-            int tam_esc;
-
-            recibir_datos_memoria_mock(cliente_fd, &pid_esc, &dir_esc, &tam_esc);
-
-            log_info(logger, "## PID: %d - Escritura - Dir. Fisica: %u - Tamaño: %d", pid_esc, dir_esc, tam_esc);
-
-            uint32_t ok_escritura = 0;
-            send(cliente_fd, &ok_escritura, sizeof(uint32_t), 0);
+            send(cliente_fd,&respuesta,sizeof(respuesta),0);
+            send(cliente_fd,leido,sizeof(tamanio),0);
             break;
 
+        case OP_WRITE_MEM:
+            int pid;
+            uint32_t tamanio, dir_fisica;
+            recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
+            recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
+            recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
+            uint8_t contenido = malloc (tamanio);
+            recv(cliente_fd,&contenido,sizeof(uint8_t),MSG_WAITALL);
+            t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, &contenido, pid);
+            t_rsp_KM memoria = revisar_memoria();
+            if (memoria==MEMORIA_CORRUPTA){
+                send(fd_KS, &memoria, sizeof(memoria), 0);
+                free(contenido);
+                break;
+            }
+            send(cliente_fd,&respuesta,sizeof(respuesta),0);
+            break;
         default:
             log_warning(logger, "Operacion desconocida de CPU");
     }
@@ -144,11 +133,15 @@ t_segmento* crear_segmento(int id_segmento, int tamanio) {
     return nuevo_segmento;
 }
 
-t_respuestas_KM agregar(t_proceso_control* proceso, t_segmento* seg){
+t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
     uint32_t tamanio_seg = seg->tamanio;
     uint32_t limite_seg = seg->tamanio + seg->base;
     if (tamanio_seg> max_segmento){
         return SEGMENTO_EXCEDIDO;
+    }
+    t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+    if (proceso == NULL) {
+        return PID_NOT_FOUND;
     }
     phtread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
@@ -200,7 +193,7 @@ t_proceso_control* buscar_proceso_por_pid(int pid) {
     return resultado;
 }
 
-t_respuestas_KM revisar_memoria(void){
+t_rsp_KM revisar_memoria(void){
     t_respuestas_KM aviso;
     if (memoria_corrupta) {
         aviso=MEMORIA_CORRUPTA;
@@ -211,10 +204,10 @@ t_respuestas_KM revisar_memoria(void){
 }
 
 t_stick* donde_guardo(uint32_t base){
-    pthread_mutex_lock(&mutex_lista_sticks);
     t_stick* resultado;
+    pthread_mutex_lock(&mutex_lista_sticks);
     for (int i=0; i<list_size(sticks);i++){
-        t_stick pruebo = list_get (sticks, i);
+        t_stick* pruebo = list_get (sticks, i);
         if (base >= pruebo -> base && < (pruebo->base + pruebo->tamanio)){
             resultado = pruebo;
         }
@@ -223,7 +216,11 @@ t_stick* donde_guardo(uint32_t base){
     return resultado;
 }
 
-t_respuestas_KM eliminar_segmento (t_proceso_control *proceso, int id_segmento){
+t_rsp_KM eliminar_segmento (int pid, int id_segmento){
+    t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+    if (proceso == NULL) {
+        return PID_NOT_FOUND;
+    }
     t_segmento* eliminado;
     pthread_mutex_lock(&mutex_lista_procesos);
     t_list* tabla_segmentos = proceso->contexto->segmentos;
@@ -242,4 +239,27 @@ t_respuestas_KM eliminar_segmento (t_proceso_control *proceso, int id_segmento){
     list_remove_and_destroy_element(segmentos,eliminado);
     pthread_mutex_unlock(&mutex_lista_segmentos);
     return OK;
+}
+
+t_rsp_KM leer_dir(uint32_t dir_fisica, uint8_t* leido,uint32_t tamanio, int pid){
+    uint32_t bytes_leidos=0;
+    t_stick* primero = donde_guardo(dir_fisica);
+    pthread_mutex_lock(&mutex_lista_sticks);
+    int fd = primero -> fd_stick;
+    t_operacion op = OP_READ_MEM;
+    uint32_t relativa = dir_fisica - primero->base;
+    send(fd,&op, sizeof(op),0);
+    send(fd,&relativa, sizeof(relativa),0);
+    uint32_t limite_stick=primero->base + primero->tamanio;
+    uint32_t limite_lectura = dir_fisica + tamanio;
+    if(limite_lectura <= limite_stick){
+        send(fd,&tamanio,sizeof(tamanio),0);
+        recv(fd,leido+bytes_leidos,tamanio, MSG_WAITALL);
+        pthread_mutex_unlock(&mutex_lista_sticks);
+        return OK;
+    }
+    uint32_t tam = limite_stick - dir_fisica;
+    send(fd,&tam,sizeof(tam),0);
+    recv(fd,leido+bytes_leidos,tam,MSG_WAITALL);
+    leer_dir()
 }

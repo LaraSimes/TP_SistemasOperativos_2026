@@ -23,7 +23,7 @@ typedef struct {
 } t_hueco_libre;
 
 typedef struct {
-    int id_stick;
+    int fd_stick;
     uint32_t base;
     uint32_t tamanio;
 }t_stick; //estructura para manejo de sticks
@@ -38,6 +38,6 @@ extern t_list* segmentos;
 extern t_list* sticks;
 extern int fd_KS;
 extern bool memoria_corrupta;
-extern int max_segmento;
+extern uint32_t max_segmento;
 
 
