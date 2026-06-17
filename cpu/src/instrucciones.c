@@ -108,7 +108,7 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
         int ok;
         recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-        if (ok != 1) return SEG_FAULT;
+        if (ok != 0) return SEG_FAULT;
 
         uint32_t valor = 0;
         recv(fd_km, &valor, size, MSG_WAITALL);
@@ -136,7 +136,7 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
         int ok;
         recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-        if (ok != 1) return SEG_FAULT;
+        if (ok != 0) return SEG_FAULT;
 
         log_info(logger, "PID: %d - Acción: ESCRIBIR - Dirección Física: %u - Valor: %u", pid, dir_fisica, valor);
         ctx->pc++;
@@ -145,41 +145,41 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
     //COPY_MEM
     if (strcmp(nombre, "COPY_MEM") == 0) {
-    int size = (int)get_registro(ctx, arg1);
+        int size = (int)get_registro(ctx, arg1);
 
-    uint32_t dir_fisica_src, dir_fisica_dst;
-    if (traducir(ctx, ctx->si, size, seg_max, &dir_fisica_src) != 0) return SEG_FAULT;
-    if (traducir(ctx, ctx->di, size, seg_max, &dir_fisica_dst) != 0) return SEG_FAULT;
+        uint32_t dir_fisica_src, dir_fisica_dst;
+        if (traducir(ctx, ctx->si, size, seg_max, &dir_fisica_src) != 0) return SEG_FAULT;
+        if (traducir(ctx, ctx->di, size, seg_max, &dir_fisica_dst) != 0) return SEG_FAULT;
 
-    // READ desde src
-    t_operacion op = OP_READ_MEM;
-    send(fd_km, &op,             sizeof(t_operacion), 0);
-    send(fd_km, &pid,            sizeof(int),         0);
-    send(fd_km, &dir_fisica_src, sizeof(uint32_t),    0);
-    send(fd_km, &size,           sizeof(int),         0);
+        // READ desde src
+        t_operacion op = OP_READ_MEM;
+        send(fd_km, &op,             sizeof(t_operacion), 0);
+        send(fd_km, &pid,            sizeof(int),         0);
+        send(fd_km, &dir_fisica_src, sizeof(uint32_t),    0);
+        send(fd_km, &size,           sizeof(int),         0);
 
-    int ok;
-    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-    if (ok != 1) return SEG_FAULT;
+        int ok;
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 0) return SEG_FAULT;
 
-    uint8_t* buffer = malloc(size);
-    recv(fd_km, buffer, size, MSG_WAITALL);
+        uint8_t* buffer = malloc(size);
+        recv(fd_km, buffer, size, MSG_WAITALL);
 
-    // WRITE hacia dst
-    op = OP_WRITE_MEM;
-    send(fd_km, &op,             sizeof(t_operacion), 0);
-    send(fd_km, &pid,            sizeof(int),         0);
-    send(fd_km, &dir_fisica_dst, sizeof(uint32_t),    0);
-    send(fd_km, &size,           sizeof(int),         0);
-    send(fd_km, buffer,          size,                0);
-    free(buffer);
+        // WRITE hacia dst
+        op = OP_WRITE_MEM;
+        send(fd_km, &op,             sizeof(t_operacion), 0);
+        send(fd_km, &pid,            sizeof(int),         0);
+        send(fd_km, &dir_fisica_dst, sizeof(uint32_t),    0);
+        send(fd_km, &size,           sizeof(int),         0);
+        send(fd_km, buffer,          size,                0);
+        free(buffer);
 
-    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-    if (ok != 1) return SEG_FAULT;
+        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if (ok != 0) return SEG_FAULT;
 
-    ctx->pc++;
-    return CONTINUAR;
-}
+        ctx->pc++;
+        return CONTINUAR;
+    }
     //SYSCALLS
 
     //SLEEP
