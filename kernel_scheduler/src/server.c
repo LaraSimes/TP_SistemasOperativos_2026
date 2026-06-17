@@ -90,7 +90,8 @@ void* atender_cliente(void* arg) {
                 cpu->id = cpu_id;
                 cpu->libre = 1; 
                 cpu->pcb_actual = NULL;      
-                cpu->interrupcion_pendiente = false;                                                        
+                cpu->interrupcion_pendiente = false; 
+                cpu->interrupcion_compactacion = false;                                                       
                 cpu->fd_interrupt = -1;
                 pthread_mutex_lock(&mutex_cpus);
                 list_add(lista_cpus, cpu);                                                         
@@ -108,10 +109,28 @@ void* atender_cliente(void* arg) {
                 list_add(lista_ios, io);         
                 log_info(logger, "## IO Conectado");
             break;
+        case MOD_KERNEL_MEMORY:
+                log_info(logger, "## Kernel Memory conectado (canal BSOD)");
+            break;
         default:
                 log_warning(logger, "Cliente desconocido");
                 close(cliente_fd);
             return NULL;
+    }
+
+    if (id == MOD_KERNEL_MEMORY) {
+        while (1) {
+            int op;
+            if (recv(cliente_fd, &op, sizeof(int), MSG_WAITALL) <= 0) {
+                log_warning(logger, "## Canal BSOD desconectado");
+                close(cliente_fd);
+                return NULL;
+            }
+            if (op == OP_BSOD) {
+                log_error(logger, "## BSOD recibido desde KM");
+                bsod();
+            }
+        }
     }
 
     // Loop de operaciones
@@ -170,8 +189,18 @@ void* atender_cliente(void* arg) {
                     free(pcb);
                     break;                                                                                                
                 case CONTINUAR:                                                                  
-                    log_info(logger, "## (%d) - Desalojado por fin de quantum", pcb->pid);         
-                    encolar_ready(pcb);                                                            
+                    if (cpu->interrupcion_compactacion) {
+                        cpu->interrupcion_compactacion = false;
+                        log_info(logger, "## (%d) - Desalojado por compactación", pcb->pid);
+                        pthread_mutex_lock(&mutex_compactacion);
+                        list_add(lista_desalojados, pcb);
+                        cpus_pendientes_compactacion--;
+                        pthread_cond_signal(&cond_compactacion);
+                        pthread_mutex_unlock(&mutex_compactacion);
+                    } else {
+                        log_info(logger, "## (%d) - Desalojado por fin de quantum", pcb->pid);
+                        encolar_ready(pcb);
+                    }
                     break;
                 case SYSCALL: {                                                                                               
                     int tipo_syscall;                                                                                                                                                      
@@ -303,15 +332,22 @@ void* atender_cliente(void* arg) {
                         t_operacion op = OP_MEM_ALLOC;
                         send(fd_km, &op, sizeof(t_operacion), 0);
                         send(fd_km, &pcb->pid, sizeof(int), 0);
-                        uint32_t seg_id_u = (uint32_t)seg_id;
-                        send(fd_km, &seg_id_u, sizeof(uint32_t), 0);
-                        send(fd_km, &tamanio, sizeof(int), 0);
-                        uint32_t ok;
-                        recv(fd_km, &ok, sizeof(uint32_t), MSG_WAITALL);
+                        uint32_t tamanio_u = (uint32_t)tamanio;
+                        send(fd_km, &tamanio_u, sizeof(uint32_t), 0);
+                        send(fd_km, &seg_id, sizeof(int), 0);
+                        int32_t ok;
+                        recv(fd_km, &ok, sizeof(int32_t), MSG_WAITALL);
                         pthread_mutex_unlock(&mutex_km);
 
-                        log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d", pcb->pid, seg_id, tamanio);
-                        encolar_ready(pcb);
+                        if (ok == FRAGMENTACION_EXT) {
+                            log_info(logger, "## (%d) - Sin memoria, iniciando compactación", pcb->pid);
+                            pcb->seg_id_pendiente = seg_id;
+                            pcb->tamanio_pendiente = tamanio;
+                            iniciar_compactacion(pcb);
+                        } else {
+                            log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d", pcb->pid, seg_id, tamanio);
+                            encolar_ready(pcb);
+                        }
 
                      } else if (tipo_syscall == SYSCALL_MEM_FREE) {
                         log_info(logger, "## (%d) - Solicitó syscall: MEM_FREE", pcb->pid);

@@ -31,6 +31,8 @@ typedef struct {
     uint32_t dir_fisica;    // dirección física para STDIN/STDOUT
     int fd_cpu_dispatch;    // fd de la CPU que despachó este proceso (para syscalls de memoria)
     int prioridad_original;
+    int seg_id_pendiente;     
+    int tamanio_pendiente; 
 } t_pcb;
 
 // CPU registrada
@@ -41,6 +43,7 @@ typedef struct {
     int libre;   // 1 = libre, 0 = ocupada
     t_pcb* pcb_actual;
     bool interrupcion_pendiente;
+    bool interrupcion_compactacion;
 } t_cpu;
 
 // MUTEX
@@ -62,8 +65,14 @@ extern t_list* lista_ios;
 extern t_list* lista_mutex;
 extern t_queue* cola_susp_block;
 extern t_queue* cola_susp_ready;
-extern pthread_mutex_t mutex_susp;
 extern int suspension_timeout;
+extern t_list* lista_desalojados;
+
+// Compactacion
+extern bool compactando;
+extern pthread_mutex_t mutex_compactacion;
+extern pthread_cond_t  cond_compactacion;
+extern int cpus_pendientes_compactacion;
 
 
 // Mutex para proteger las colas
@@ -72,6 +81,8 @@ extern pthread_mutex_t mutex_block;
 extern pthread_mutex_t mutex_cpus;
 extern pthread_mutex_t mutex_ios;
 extern pthread_mutex_t mutex_mutex;
+extern pthread_mutex_t mutex_susp;
+
 
 // Funciones
 t_pcb* crear_pcb(int pid, char* path, int prioridad);
@@ -106,5 +117,9 @@ void suspender_proceso(t_pcb* pcb);
 void encolar_susp_ready(t_pcb* pcb);
 void intentar_desuspender();
 t_pcb* buscar_en_susp_block(int pid);
+void reencolar_ready(t_pcb* pcb);
+void iniciar_compactacion(t_pcb* pcb_original);
+void bsod();
+
 
 #endif

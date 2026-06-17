@@ -44,7 +44,8 @@ typedef enum {
     OP_WRITE_MEM        = 9, // para que cpu smile escritura y contestar ok (km)
     OP_SUSPEND          = 10, // KS → KM: manda pid a SWAP
     OP_DESUSPEND        = 11, // KS → KM: trae de SWAP si hay espacio libre
-
+    OP_COMPACT_OK       = 12, // KS → KM: CPUs libres, podés compactar
+    OP_BSOD             = 13, // KM → KS: memoria corrupta, finalizar sistema
 } t_operacion;
 
 typedef struct {

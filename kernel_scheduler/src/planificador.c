@@ -1,5 +1,6 @@
 #include "planificador.h"
 
+// Variables Globales
 extern t_log* logger;
 extern void registrar_proceso_en_km(int pid, char* path);
 extern char* planification_algorithm;
@@ -10,6 +11,8 @@ static void* hilo_suspension(void* arg);
 extern int suspension_timeout;
 extern int fd_km;
 extern pthread_mutex_t mutex_km;
+int cpus_pendientes_compactacion = 0;
+bool compactando = false;
 
 // Colas globales
 t_queue*  cola_new;
@@ -23,6 +26,7 @@ t_queue* cola_susp_ready;
 t_list* lista_cpus;
 t_list* lista_ios;
 t_list* lista_mutex;
+t_list* lista_desalojados;
 
 // Mutex
 pthread_mutex_t mutex_ready  = PTHREAD_MUTEX_INITIALIZER;
@@ -31,6 +35,9 @@ pthread_mutex_t mutex_cpus   = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ios    = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_mutex  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_susp = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_compactacion = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  cond_compactacion  = PTHREAD_COND_INITIALIZER;
+
 
 // PID autoincremental
 static int siguiente_pid = 0;
@@ -44,6 +51,7 @@ void iniciar_planificador() {
     lista_mutex = list_create();
     cola_susp_block = queue_create();
     cola_susp_ready = queue_create();
+    lista_desalojados = list_create();
 
     if (strcmp(planification_algorithm, "CMN") == 0) {
         num_colas = queues_count;
@@ -438,4 +446,124 @@ void intentar_desuspender() {
         queue_push(cola_susp_ready, candidato);
         pthread_mutex_unlock(&mutex_susp);
     }
+}
+
+void reencolar_ready(t_pcb* pcb) { // Reencola al frente no al final
+    cambiar_estado(pcb, READY);
+
+    int index;
+    if (strcmp(planification_algorithm, "CMN") == 0) {
+        index = pcb->prioridad;
+      } else {
+        index = 0;
+    }
+    if (index < 0 || index >= num_colas) return;
+    
+    pthread_mutex_lock(&mutex_ready);
+    list_add_in_index(colas_ready[index]->elements, 0, pcb);
+    pthread_mutex_unlock(&mutex_ready);
+    wake_dispatcher();
+}
+
+void iniciar_compactacion(t_pcb* pcb_original) {
+    pthread_mutex_lock(&mutex_compactacion);
+    compactando = true;
+
+    // Paso 1: interrumpir todas las CPUs ocupadas
+      pthread_mutex_lock(&mutex_cpus);
+      cpus_pendientes_compactacion = 0;
+      for (int i = 0; i < list_size(lista_cpus); i++) {
+          t_cpu* cpu = list_get(lista_cpus, i);
+          if (!cpu->libre && cpu->fd_interrupt >= 0) {
+              cpu->interrupcion_compactacion = true;
+              cpus_pendientes_compactacion++;
+              int interrupcion = 1;
+              send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
+          }
+      }
+      pthread_mutex_unlock(&mutex_cpus);
+
+    // Paso 2: esperar que todas las CPUs devuelvan su proceso
+      while (cpus_pendientes_compactacion > 0)
+          pthread_cond_wait(&cond_compactacion, &mutex_compactacion);
+
+    // Pasos 3 y 4: avisar a KM y esperar fin de compactación
+      pthread_mutex_lock(&mutex_km);
+      t_operacion op = OP_COMPACT_OK;
+      send(fd_km, &op, sizeof(t_operacion), 0);
+      int ok_compact;
+      recv(fd_km, &ok_compact, sizeof(int), MSG_WAITALL);
+      pthread_mutex_unlock(&mutex_km);
+      log_info(logger, "## Compactación completada");
+
+    // Paso 5a: reintentar MEM_ALLOC para el proceso que lo disparó
+      pthread_mutex_lock(&mutex_km);
+      op = OP_MEM_ALLOC;
+      send(fd_km, &op, sizeof(t_operacion), 0);
+      send(fd_km, &pcb_original->pid, sizeof(int), 0);
+      uint32_t tam_u = (uint32_t)pcb_original->tamanio_pendiente;
+      send(fd_km, &tam_u, sizeof(uint32_t), 0);
+      send(fd_km, &pcb_original->seg_id_pendiente, sizeof(int), 0);
+      int32_t ok_alloc;
+      recv(fd_km, &ok_alloc, sizeof(int32_t), MSG_WAITALL);
+      pthread_mutex_unlock(&mutex_km);
+
+      if (ok_alloc >= 0){
+          log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %d (post-compactación)", 
+                    pcb_original->pid, pcb_original->seg_id_pendiente,
+                    pcb_original->tamanio_pendiente);
+      } else {
+        log_warning(logger, "## PID: %d - Sin memoria incluso tras compactación", pcb_original->pid);
+      }
+        encolar_ready(pcb_original);
+
+    // Paso 5b: re-encolar desalojados al frente
+        for (int i = 0; i < list_size(lista_desalojados); i++)
+            reencolar_ready(list_get(lista_desalojados, i));
+        list_clean(lista_desalojados);
+
+      intentar_desuspender();
+      compactando = false;
+      pthread_mutex_unlock(&mutex_compactacion);
+}
+
+void bsod() {
+    log_error(logger, "## BSOD - Memoria corrupta. Finalizando sistema.");
+
+    pthread_mutex_lock(&mutex_cpus);
+    for (int i = 0; i < list_size(lista_cpus); i++) {
+        t_cpu* cpu = list_get(lista_cpus, i);
+        if (!cpu->libre && cpu->pcb_actual != NULL)
+            cambiar_estado(cpu->pcb_actual, EXIT);
+    }
+    pthread_mutex_unlock(&mutex_cpus);
+
+    pthread_mutex_lock(&mutex_ready);
+    for (int i = 0; i < num_colas; i++) {
+        while (!queue_is_empty(colas_ready[i])) {
+            t_pcb* pcb = queue_pop(colas_ready[i]);
+            cambiar_estado(pcb, EXIT);
+        }
+    }
+    pthread_mutex_unlock(&mutex_ready);
+
+    pthread_mutex_lock(&mutex_block);
+    while (!queue_is_empty(cola_block)) {
+        t_pcb* pcb = queue_pop(cola_block);
+        cambiar_estado(pcb, EXIT);
+    }
+    pthread_mutex_unlock(&mutex_block);
+
+    pthread_mutex_lock(&mutex_susp);
+    while (!queue_is_empty(cola_susp_block)) {
+        t_pcb* pcb = queue_pop(cola_susp_block);
+        cambiar_estado(pcb, EXIT);
+    }
+    while (!queue_is_empty(cola_susp_ready)) {
+        t_pcb* pcb = queue_pop(cola_susp_ready);
+        cambiar_estado(pcb, EXIT);
+    }
+    pthread_mutex_unlock(&mutex_susp);
+
+    exit(1);
 }
