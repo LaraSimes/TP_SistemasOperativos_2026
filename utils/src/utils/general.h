@@ -42,6 +42,9 @@ typedef enum {
     OP_MEM_FREE        = 7, // para que el ks pida liberar segmento (km)
     OP_READ_MEM        = 8, // para que cpu simle lectura de datos y contestar ok (km)
     OP_WRITE_MEM        = 9, // para que cpu smile escritura y contestar ok (km)
+    OP_SUSPEND          = 10, // KS → KM: manda pid a SWAP
+    OP_DESUSPEND        = 11, // KS → KM: trae de SWAP si hay espacio libre
+
 } t_operacion;
 
 typedef struct {

@@ -60,6 +60,10 @@ extern t_queue*  cola_block;
 extern t_list* lista_cpus;
 extern t_list* lista_ios;
 extern t_list* lista_mutex;
+extern t_queue* cola_susp_block;
+extern t_queue* cola_susp_ready;
+extern pthread_mutex_t mutex_susp;
+extern int suspension_timeout;
 
 
 // Mutex para proteger las colas
@@ -98,5 +102,9 @@ t_mutex* buscar_mutex(char* nombre);
 t_mutex* crear_mutex(char* nombre);
 t_cpu* buscar_cpu_por_id(int id);
 void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad);
+void suspender_proceso(t_pcb* pcb);
+void encolar_susp_ready(t_pcb* pcb);
+void intentar_desuspender();
+t_pcb* buscar_en_susp_block(int pid);
 
 #endif

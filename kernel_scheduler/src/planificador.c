@@ -6,12 +6,18 @@ extern char* planification_algorithm;
 extern char** queues_algorithms;
 extern int    queues_count;
 extern bool   queue_preemption;
+static void* hilo_suspension(void* arg);
+extern int suspension_timeout;
+extern int fd_km;
+extern pthread_mutex_t mutex_km;
 
 // Colas globales
 t_queue*  cola_new;
 t_queue** colas_ready;
 int       num_colas;
 t_queue*  cola_block;
+t_queue* cola_susp_block;
+t_queue* cola_susp_ready;
 
 // Listas globales
 t_list* lista_cpus;
@@ -24,6 +30,7 @@ pthread_mutex_t mutex_block  = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_cpus   = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_ios    = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t mutex_mutex  = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_susp = PTHREAD_MUTEX_INITIALIZER;
 
 // PID autoincremental
 static int siguiente_pid = 0;
@@ -35,6 +42,8 @@ void iniciar_planificador() {
     lista_cpus  = list_create();
     lista_ios   = list_create();
     lista_mutex = list_create();
+    cola_susp_block = queue_create();
+    cola_susp_ready = queue_create();
 
     if (strcmp(planification_algorithm, "CMN") == 0) {
         num_colas = queues_count;
@@ -151,7 +160,47 @@ void encolar_block(t_pcb* pcb) {
     pthread_mutex_lock(&mutex_block);
     queue_push(cola_block, pcb);
     pthread_mutex_unlock(&mutex_block);
+
+    // Timer de suspensión
+    int* pid_arg = malloc(sizeof(int));
+    *pid_arg = pcb->pid;
+    pthread_t th;
+    pthread_create(&th, NULL, hilo_suspension, pid_arg);
+    pthread_detach(th);
 }
+
+static void* hilo_suspension(void* arg) {
+    int pid = *(int*)arg;
+    free(arg);
+
+    usleep((long)suspension_timeout * 1000);
+
+    // Buscar el proceso en BLOCK (si ya salió, no hacemos nada)
+    t_pcb* pcb = buscar_en_block(pid);
+    if (pcb == NULL) return NULL;
+
+    suspender_proceso(pcb);
+    return NULL;
+}
+
+void suspender_proceso(t_pcb* pcb) {
+    // Notificar a KM que lo mande a SWAP
+    pthread_mutex_lock(&mutex_km);
+    t_operacion op = OP_SUSPEND;
+    send(fd_km, &op, sizeof(t_operacion), 0);
+    send(fd_km, &pcb->pid, sizeof(int), 0);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_km);
+
+    cambiar_estado(pcb, SUSP_BLOCK);
+    log_info(logger, "## (%d) Se suspende el proceso - Estado: SUSP_BLOCK", pcb->pid);
+    pthread_mutex_lock(&mutex_susp);
+    queue_push(cola_susp_block, pcb);
+    pthread_mutex_unlock(&mutex_susp);
+  }
+
+
 
 t_cpu* buscar_cpu_libre() {
     pthread_mutex_lock(&mutex_cpus);
@@ -324,4 +373,69 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
         }
     }
     pthread_mutex_unlock(&mutex_block);
+}
+
+
+t_pcb* buscar_en_susp_block(int pid) {
+    pthread_mutex_lock(&mutex_susp);
+    t_pcb* encontrado = NULL;
+    for (int i = 0; i < list_size(cola_susp_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_susp_block->elements, i);
+        if (pcb->pid == pid) {
+            encontrado = pcb;
+            list_remove(cola_susp_block->elements, i);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_susp);
+    return encontrado;
+}
+
+void encolar_susp_ready(t_pcb* pcb) {
+    cambiar_estado(pcb, SUSP_READY);
+    pthread_mutex_lock(&mutex_susp);
+    queue_push(cola_susp_ready, pcb);
+    pthread_mutex_unlock(&mutex_susp);
+}
+
+void intentar_desuspender() {
+    pthread_mutex_lock(&mutex_susp);
+    if (queue_is_empty(cola_susp_ready)) {
+        pthread_mutex_unlock(&mutex_susp);
+        return;
+      }
+    t_pcb* candidato = NULL;
+    int mejor = -1;
+    for (int i = 0; i < list_size(cola_susp_ready->elements); i++) {
+        t_pcb* pcb = list_get(cola_susp_ready->elements, i);
+        if (mejor == -1 || pcb->prioridad < mejor) {
+            mejor = pcb->prioridad;
+            candidato = pcb;
+        }
+    }
+    for (int i = 0; i < list_size(cola_susp_ready->elements); i++) {
+        if (list_get(cola_susp_ready->elements, i) == candidato) {
+            list_remove(cola_susp_ready->elements, i);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_susp);
+
+    pthread_mutex_lock(&mutex_km);
+    t_operacion op = OP_DESUSPEND;
+    send(fd_km, &op, sizeof(t_operacion), 0);
+    send(fd_km, &candidato->pid, sizeof(int), 0);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_km);
+
+    if (ok) {
+        log_info(logger, "## (%d) Se des-suspende el proceso", candidato->pid);
+        encolar_ready(candidato);
+    } else {
+        log_info(logger, "## (%d) Sin espacio para des-suspender, vuelve a SUSP_READY", candidato->pid);
+        pthread_mutex_lock(&mutex_susp);
+        queue_push(cola_susp_ready, candidato);
+        pthread_mutex_unlock(&mutex_susp);
+    }
 }

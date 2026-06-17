@@ -331,6 +331,7 @@ void* atender_cliente(void* arg) {
 
                         log_info(logger, "## PID: %d - Segmento Liberado %d", pcb->pid, seg_id);
                         encolar_ready(pcb);
+                        intentar_desuspender();
                      }
                       break;
                   }                                       
@@ -380,8 +381,14 @@ void* atender_cliente(void* arg) {
                 }
 
                 if (pcb_stdin != NULL) {
-                    log_info(logger, "## (%d) finalizó IO y pasa a READY / SUSP. READY", pcb_stdin->pid);
+                    log_info(logger, "## (%d) finalizó IO y pasa a READY", pcb_stdin->pid);
                     encolar_ready(pcb_stdin);
+                } else {
+                    pcb_stdin = buscar_en_susp_block(pid); 
+                    if (pcb_stdin != NULL) {
+                        encolar_susp_ready(pcb_stdin);
+                        intentar_desuspender();
+                    }
                 }
 
             } else { // STDOUT y SLEEP
@@ -402,8 +409,14 @@ void* atender_cliente(void* arg) {
 
                 t_pcb* pcb = buscar_en_block(pid);
                 if (pcb != NULL) {
-                    log_info(logger, "## (%d) finalizó IO y pasa a READY / SUSP. READY", pcb->pid);
+                    log_info(logger, "## (%d) finalizó IO y pasa a READY", pcb->pid);
                     encolar_ready(pcb);
+                } else {
+                    pcb = buscar_en_susp_block(pid);
+                    if (pcb != NULL) {
+                        encolar_susp_ready(pcb);
+                        intentar_desuspender();
+                    }
                 }
             }
             wake_dispatcher();
