@@ -70,6 +70,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             }
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             send(cliente_fd,leido,sizeof(tamanio),0);
+            log_info(logger, "##PID: %d, Escritura, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
             break;
 
         case OP_WRITE_MEM:
@@ -241,25 +242,27 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
     return OK;
 }
 
-t_rsp_KM leer_dir(uint32_t dir_fisica, uint8_t* leido,uint32_t tamanio, int pid){
+t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos){
     uint32_t bytes_leidos=0;
-    t_stick* primero = donde_guardo(dir_fisica);
-    pthread_mutex_lock(&mutex_lista_sticks);
-    int fd = primero -> fd_stick;
+    t_stick* stick = donde_guardo(direccion);
     t_operacion op = OP_READ_MEM;
-    uint32_t relativa = dir_fisica - primero->base;
-    send(fd,&op, sizeof(op),0);
-    send(fd,&relativa, sizeof(relativa),0);
-    uint32_t limite_stick=primero->base + primero->tamanio;
-    uint32_t limite_lectura = dir_fisica + tamanio;
-    if(limite_lectura <= limite_stick){
-        send(fd,&tamanio,sizeof(tamanio),0);
-        recv(fd,leido+bytes_leidos,tamanio, MSG_WAITALL);
+    send(stick -> fd_stick,&op, sizeof(op),0);
+    pthread_mutex_lock(&mutex_lista_sticks);
+    uint32_t limite_stick = stick -> base + stick -> tamanio;
+    uint32_t direccion_relativa = direccion - stick->base;
+    send(stick->fd_stick,&direccion_relativa,sizeof(uint32_t),0);
+    if (direccion+tamanio <= limite_stick){
+        send(stick->fd_stick,&tamanio,sizeof(uint32_t),0);
+        recv(stick->fd_stick,leido+b_leidos,tamanio,MSG_WAITALL);
         pthread_mutex_unlock(&mutex_lista_sticks);
         return OK;
     }
-    uint32_t tam = limite_stick - dir_fisica;
+    uint32_t tam = limite_stick - direccion;
     send(fd,&tam,sizeof(tam),0);
-    recv(fd,leido+bytes_leidos,tam,MSG_WAITALL);
-    leer_dir()
+    recv(fd,leido+b_leidos,tam,MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_lista_sticks);
+    b_leidos =+tam;
+    uint32_t siguiente_base = direccion + tam;
+    uint32_t restante = tamanio - tam;
+    return leer_dir(siguiente_base,restante,leido,b_leidos);
 }
