@@ -96,6 +96,7 @@ typedef enum {
     PID_NOT_FOUND= -3,
     SEGMENTO_EXCEDIDO= -4,
     SEGMENTO_NOT_FOUND= -5,
+    ERROR = -6;
 } t_rsp_KM;
 
 

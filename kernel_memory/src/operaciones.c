@@ -61,7 +61,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t *leido=malloc(tamanio);
-            t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,pid);
+            t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,0);
             t_rsp_KM memoria = revisar_memoria();
             if (memoria==MEMORIA_CORRUPTA){
                 send(fd_KS, &memoria, sizeof(memoria), 0);
@@ -243,11 +243,13 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
 }
 
 t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos){
-    uint32_t bytes_leidos=0;
     t_stick* stick = donde_guardo(direccion);
+    if(stick==NULL){
+        return ERROR;
+    }
     t_operacion op = OP_READ_MEM;
-    send(stick -> fd_stick,&op, sizeof(op),0);
     pthread_mutex_lock(&mutex_lista_sticks);
+    send(stick -> fd_stick,&op, sizeof(op),0);
     uint32_t limite_stick = stick -> base + stick -> tamanio;
     uint32_t direccion_relativa = direccion - stick->base;
     send(stick->fd_stick,&direccion_relativa,sizeof(uint32_t),0);
@@ -258,11 +260,38 @@ t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t 
         return OK;
     }
     uint32_t tam = limite_stick - direccion;
-    send(fd,&tam,sizeof(tam),0);
-    recv(fd,leido+b_leidos,tam,MSG_WAITALL);
+    send(stick->fd_stick,&tam,sizeof(tam),0);
+    recv(stick->fd_stick,leido+b_leidos,tam,MSG_WAITALL);
     pthread_mutex_unlock(&mutex_lista_sticks);
     b_leidos =+tam;
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
     return leer_dir(siguiente_base,restante,leido,b_leidos);
+}
+
+t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uint32_t b_escritos){
+    t_stick* stick = donde_guardo(direccion);
+    if(stick==NULL){
+        return ERROR;
+    }
+    t_operacion op = OP_WRITE_MEM;
+    pthread_mutex_lock(&mutex_lista_sticks);
+    send(stick -> fd_stick,&op, sizeof(op),0);
+    uint32_t limite_stick = stick -> base + stick -> tamanio;
+    uint32_t direccion_relativa = direccion - stick->base;
+    send(stick->fd_stick,&direccion_relativa,sizeof(uint32_t),0);
+    if (direccion+tamanio <= limite_stick){
+        send(stick->fd_stick,&tamanio,sizeof(uint32_t),0);
+        send(stick->fd_stick,escrito+b_escritos,tamanio,0);
+        pthread_mutex_unlock(&mutex_lista_sticks);
+        return OK;
+    }
+    uint32_t tam = limite_stick - direccion;
+    send(stick->fd_stick,&tam,sizeof(tam),0);
+    send(stick->fd_stick,escrito+b_escritos,tam,0);
+    pthread_mutex_unlock(&mutex_lista_sticks);
+    b_escritos =+tam;
+    uint32_t siguiente_base = direccion + tam;
+    uint32_t restante = tamanio - tam;
+    return escribir_dir(siguiente_base,restante,escrito,b_escritos);
 }
