@@ -92,11 +92,10 @@ typedef enum {
 typedef enum {
     OK = 0,
     FRAGMENTACION_EXT = -1,
-    MEMORIA_CORRUPTA= -2,
-    PID_NOT_FOUND= -3,
-    SEGMENTO_EXCEDIDO= -4,
-    SEGMENTO_NOT_FOUND= -5,
-    ERROR = -6;
+    PID_NOT_FOUND= -2,
+    SEGMENTO_EXCEDIDO= -3,
+    SEGMENTO_NOT_FOUND= -4,
+    ERROR = -5;
 } t_rsp_KM;
 
 

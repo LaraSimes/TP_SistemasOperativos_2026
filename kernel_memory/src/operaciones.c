@@ -15,11 +15,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
 
         case OP_GET_FREE_SPACE:
             uint32_t espacio = obtener_espacio_libre();
-            t_rsp_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA) {
-                send(fd_KS,&memoria, sizeof(memoria),0);
-                break;
-            }
             send(cliente_fd, &espacio, sizeof(uint32_t), 0);
             log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes", espacio);
             break;
@@ -32,12 +27,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
             t_segmento* seg = crear_segmento(id_segmento, tamanio);
             t_rsp_KM resultado = agregar_segmento(pid, seg);
-            t_rsp_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA) {
-                send(fd_KS,&memoria, sizeof(memoria),0);
-                free(seg);
-                break;
-            }
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
 
@@ -46,11 +35,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
             t_rsp_KM respuesta = eliminar_segmento(proceso,id_segmento);
-            t_rsp_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA) {
-                send(fd_KS,&memoria, sizeof(memoria),0)
-                break;
-            }
             send (cliente_fd, &respuesta,sizeof(respuesta),0);
             break;
             
@@ -62,14 +46,8 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t *leido=malloc(tamanio);
             t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,0);
-            t_rsp_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA){
-                send(fd_KS, &memoria, sizeof(memoria), 0);
-                free(leido);
-                break;
-            }
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
-            send(cliente_fd,leido,sizeof(tamanio),0);
+            send(cliente_fd,leido,tamanio,0);
             log_info(logger, "##PID: %d, Escritura, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
             break;
 
@@ -80,14 +58,8 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t contenido = malloc (tamanio);
-            recv(cliente_fd,&contenido,sizeof(uint8_t),MSG_WAITALL);
+            recv(cliente_fd,&contenido,tamanio,MSG_WAITALL);
             t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, &contenido, pid);
-            t_rsp_KM memoria = revisar_memoria();
-            if (memoria==MEMORIA_CORRUPTA){
-                send(fd_KS, &memoria, sizeof(memoria), 0);
-                free(contenido);
-                break;
-            }
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             break;
         default:
@@ -192,16 +164,6 @@ t_proceso_control* buscar_proceso_por_pid(int pid) {
     }
     pthread_mutex_unlock(&mutex_lista_procesos);
     return resultado;
-}
-
-t_rsp_KM revisar_memoria(void){
-    t_respuestas_KM aviso;
-    if (memoria_corrupta) {
-        aviso=MEMORIA_CORRUPTA;
-        return aviso;
-    }
-    aviso = OK;
-    return aviso;
 }
 
 t_stick* donde_guardo(uint32_t base){

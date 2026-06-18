@@ -8,6 +8,8 @@ typedef struct{
     int compaction_delay;
     char* scripts_basepath;
     char* puerto_escucha; 
+    char* ip_ks;
+    char* puerto_ks;
 } t_config_valores;
 
 typedef struct {
@@ -37,7 +39,6 @@ extern t_list* huecos_libres;
 extern t_list* segmentos;
 extern t_list* sticks;
 extern int fd_KS;
-extern bool memoria_corrupta;
 extern uint32_t max_segmento;
 
 

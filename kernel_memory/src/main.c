@@ -38,6 +38,10 @@ int main(int argc, char* argv[])
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);
 
+    int fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
+    handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
+
+
     while(true){ //logica de esperar clientes
         int cliente_fd=esperar_cliente(server_fd);
 
@@ -65,6 +69,8 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->allocation_strategy=config_get_string_value(config,"ALLOCATION_STRATEGY");
     valores->scripts_basepath=config_get_string_value(config,"SCRIPTS_BASEPATH");
     valores->puerto_escucha=config_get_string_value(config,"PUERTO_ESCUCHA");
+    valores->puerto_ks=config_get_string_value(config,"PUERTO_KS");
+    valores->ip_ks=config_get_string_value(config,"IP_KS");
 }
 
 bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o false
@@ -121,24 +127,16 @@ void* manejar_cliente(void* arg)  {
     identificar_modulo(id_recibida, logger);
 
     while (true) { // el hilo se queda activo hasta que el cliente se desconecta
-        if (memoria_corrupta) {
-            t_errores_KM aviso=MEMORIA_CORRUPTA;
-            int aviso = send (fd_KS,&aviso, sizeof(t_errores_KM),0);
-            break;
-        }
         int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);
         if (operacion_rec <= 0) {
             log_error(logger, "Cliente desconectado del socket %d", cliente_fd);
             if (id_recibida == MOD_MEMORY_STICK) {
                 sacar_stick(cliente_fd);
+                int op= OP_BSOD
+                send(fd_ks_bsod,&op,sizeof(int),0);
             }
             close(cliente_fd);
             return NULL;
-        }
-        if (memoria_corrupta) {
-            t_errores_KM aviso=MEMORIA_CORRUPTA;
-            int aviso = send (fd_KS,&aviso, sizeof(t_errores_KM),0);
-            break;
         }
         manejar_operacion(cliente_fd, cod_op);
     };
