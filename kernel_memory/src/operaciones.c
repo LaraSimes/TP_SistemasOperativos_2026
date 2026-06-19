@@ -9,8 +9,8 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             char* path = malloc(tam_path);
             recv(cliente_fd, path, tam_path, MSG_WAITALL);
             crear_proceso(pid, path);
-            t_rsp_KM resultado = OK;
-            send(cliente_fd, &resultado, sizeof(resultado), 0);
+            t_rsp_KM exito = OK;
+            send(cliente_fd,&exito, sizeof(exito),0);
             log_info(logger,"## PID: %d - Proceso Creado", pid);
             break;
         }
@@ -80,10 +80,44 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
                 send(cliente_fd,&resp2, sizeof(resp2),0);
                 break;
             }
+            t_rsp_KM exito = OK;
+            send(cliente_fd,&exito, sizeof(exito),0);
             int tamanio=strlen(instruccion);
             send(cliente_fd,&tamanio, sizeof(int),0);
             send(cliente_fd,instruccion,tamanio,0);
             free(instruccion);
+        }
+        case OP_GET_CONTEXT:{
+            int pid;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+            if (proceso==NULL) {
+                t_rsp_KM resp = PID_NOT_FOUND;
+                send(cliente_fd,&resp, sizeof(resp),0);
+                break;
+            }
+            t_rsp_KM exito = OK;
+            send(cliente_fd,&exito, sizeof(exito),0);
+            t_contexto* contextoProceso = obtener_contexto(proceso);
+            send(cliente_fd,contextoProceso,sizeof(contextoProceso),0);
+            enviar_segmentos(cliente_fd,contextoProceso->segmentos);
+            break;
+        }
+        case OP_SET_CONTEXT:{
+            int pid;
+            t_contexto* contexto;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            recv(cliente_fd,contexto,sizeof(t_contexto),MSG_WAITALL);
+            t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+            if (proceso==NULL) {
+                t_rsp_KM resp = PID_NOT_FOUND;
+                send(cliente_fd,&resp, sizeof(resp),0);
+                break;
+            }
+            actualizar_contexto(proceso,contexto);   
+            t_rsp_KM exito = OK;
+            send(cliente_fd,&exito, sizeof(exito),0);
+            break;
         }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
@@ -317,4 +351,40 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
     fclose(archivo);
     free(linea);
     return NULL;
+}
+
+t_contexto* contextoProceso(t_proceso_control* proceso){
+    pthread_mutex_lock(&mutex_lista_procesos);
+    t_contexto* ret = proceso-> contexto;
+    pthread_mutex_unlock(&mutex_lista_procesos);
+    free(ret);
+}
+
+void enviar_segmentos(int cliente_fd, t_list* segmentos) {
+    int cantidad_segmentos = list_size(segmentos);
+
+    send(cliente_fd, &cantidad_segmentos, sizeof(int), 0);
+
+    for (int i = 0; i < cantidad_segmentos; i++) {
+        t_segmento* segmento = list_get(segmentos, i);
+
+        send(cliente_fd, segmento, sizeof(t_segmento), 0);
+    }
+}
+
+void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt){
+    pthread_mutex_lock(&mutex_lista_procesos);
+    t_contexto* actual = proceso->contexto;
+    contexto->pc= cxt->pc;
+    contexto->ax = cxt->ax;
+    contexto->bx = cxt->bx;
+    contexto->cx = cxt->cx;
+    contexto->dx = cxt->dx;
+    contexto->eax = cxt->eax;
+    contexto->ebx = cxt->ebx;
+    contexto->ecx = cxt->ecx;
+    contexto->edx = cxt->edx;
+    contexto->si = cxt -> si;
+    contexto->di = cxt ->di;
+    pthread_mutex_unlock(&mutex_lista_procesos);
 }
