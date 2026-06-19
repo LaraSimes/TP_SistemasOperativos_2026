@@ -119,6 +119,20 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             send(cliente_fd,&exito, sizeof(exito),0);
             break;
         }
+        case OP_SUSPEND:{
+            int pid;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            t_proceso_control* p = buscar_proceso_por_pid(pid);
+            suspender_proceso(p);
+            t_rsp_KM exito = OK;
+            send(cliente_fd,&exito, sizeof(exito),0);
+        }
+        case OP_DESUSPEND:{
+            int pid;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            t_rsp_KM resp = desuspender_proceso(pid);
+            send(cliente_fd,&resp, sizeof(exito),0);
+        }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
     }
@@ -353,7 +367,7 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
     return NULL;
 }
 
-t_contexto* contextoProceso(t_proceso_control* proceso){
+t_contexto* obtener_contexto(t_proceso_control* proceso){
     pthread_mutex_lock(&mutex_lista_procesos);
     t_contexto* ret = proceso-> contexto;
     pthread_mutex_unlock(&mutex_lista_procesos);
@@ -387,4 +401,47 @@ void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt){
     contexto->si = cxt -> si;
     contexto->di = cxt ->di;
     pthread_mutex_unlock(&mutex_lista_procesos);
+}
+
+void suspender_proceso(t_proceso_control* proceso){
+    t_operacion OP_SUSPEND;
+    send(fd_SWAP,&op,sizeof(op),0);
+    pthread_mutex_lock(&mutex_lista_segmentos);
+    t_segmento* segmentos = proceso->contexto.segmentos;
+    pthread_mutex_unlock(&mutex_lista_segmentos);
+    for(int i=0;i<list_size(segmentos);i++){
+        t_segmento* seg = list.get(segmentos,i);
+        int id = seg->id_segmento;
+        uint32_t tamanio = seg->tamanio;
+        send(fd_SWAP,&id,sizeof(int),0);
+        send(fd_SWAP,&tamanio,sizeof(uint32_t),0);
+        eliminar_segmento(proceso->pid,id);
+    }
+}
+
+t_rsp_KM desuspender_proceso(int pid){
+    t_operacion op= OP_DESUSPEND;
+    t_rsp_KM ret= OK;
+    int cantidad_seg;
+    send(fd_SWAP,&op,sizeof(op),0);
+    send(fd_SWAP,&pid,sizeof(int),0);
+    recv(fd_SWAP,&cantidad_seg,sizeof(int),MSG_WAITALL);
+    for(int i=0;i<cantidad_seg,i++){
+        int id;
+        uint32_t tamanio;
+        recv(fd_SWAP,&id,sizeof(int),0);
+        recv(fd_SWAP,&tamanio,sizeof(uint32_t),0);
+        void* contenido = malloc(tamanio);
+        recv(fd_SWAP, contenido, tamanio, MSG_WAITALL);
+        t_segmento* desus=crear_segmento(id,tamanio);
+        ret = agregar_segmento(pid,desus);
+        if (ret < 0) {
+            free(contenido);
+            free(desus);
+            return ret;
+        }
+        escribir_memoria(desus->base, contenido, tamanio);
+        free(contenido);
+    }
+    return ret;
 }

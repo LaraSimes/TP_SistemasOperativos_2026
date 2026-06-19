@@ -88,6 +88,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
         }
         
         case MOD_SWAP:
+            fd_SWAP = cliente_fd;
             log_info(logger, "## SWAP Conectado");
             break;
 

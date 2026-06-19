@@ -16,4 +16,10 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento);
 t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos);
 t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uint32_t b_escritos);
 t_list* filtrar_huecos_por_tamanio(t_list* huecos, uint32_t tamanio_seg);
+char* leer_instruccion_de_archivo(char* path, uint32_t pc);
+t_contexto* obtener_contexto(t_proceso_control* proceso);
+void enviar_segmentos(int cliente_fd, t_list* segmentos);
+void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt);
+void suspender_proceso(t_proceso_control* proceso);
+t_rsp_KM desuspender_proceso(int pid);
 #endif
