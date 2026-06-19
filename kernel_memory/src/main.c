@@ -74,33 +74,7 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->ip_ks=config_get_string_value(config,"IP_KS");
 }
 
-bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o false
-    t_proceso_control* proceso = (t_proceso_control*) elemento;
-    return proceso->pid == pid_a_buscar;
-}   
 
-
-char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
-    FILE* archivo = fopen(path, "r");
-    if (archivo == NULL){
-        return NULL;
-    }
-    char* linea = malloc(128); //espacio suficiente para una instruccion
-    uint32_t renglon_actual = 0; //contador
-
-    //recorro el archivo renglon por renglon
-    while(fgets(linea, 128, archivo) != NULL) { //leo una linea completa de un archivo txt
-        if(renglon_actual == pc) { //encontramos el pc buscado, se saca el \n del final si existe
-            linea[strcspn(linea, "\n")] = '\0';
-            fclose(archivo);
-            return linea; //buffer donde se va a guardar lo que leyo
-        }
-        renglon_actual ++;
-    }
-    fclose(archivo);
-    free(linea);
-    return NULL;
-}
 
 void* manejar_cliente(void* arg)  {
     int cliente_fd = *(int*)arg;
@@ -136,4 +110,8 @@ void* manejar_cliente(void* arg)  {
     };
     close(cliente_fd);
     return NULL;
+}
+bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o false
+    t_proceso_control* proceso = (t_proceso_control*) elemento;
+    return proceso->pid == pid_a_buscar;
 }

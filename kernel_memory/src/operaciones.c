@@ -64,6 +64,27 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             break;
         }
+        case OP_GET_INSTRUCCION:{
+            int pid,pc;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            recv(cliente_fd,&pc,sizeof(int),MSG_WAITALL);
+            t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+            if (proceso==NULL) {
+                t_rsp_KM resp = PID_NOT_FOUND;
+                send(cliente_fd,&resp, sizeof(resp),0);
+                break;
+            }
+            char* instruccion = leer_instruccion_de_archivo(proceso->path_instrucciones,pc);
+            if(instruccion==NULL){
+                t_rsp_KM resp2= ERROR;
+                send(cliente_fd,&resp2, sizeof(resp2),0);
+                break;
+            }
+            int tamanio=strlen(instruccion);
+            send(cliente_fd,&tamanio, sizeof(int),0);
+            send(cliente_fd,instruccion,tamanio,0);
+            free(instruccion);
+        }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
     }
@@ -262,6 +283,7 @@ t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uin
     uint32_t restante = tamanio - tam;
     return escribir_dir(siguiente_base,restante,escrito,b_escritos);
 }
+
 t_list* filtrar_huecos_por_tamanio(t_list* huecos, uint32_t tamanio_seg) {
     t_list* filtrados = list_create();
     for (int i = 0; i < list_size(huecos); i++) {
@@ -273,4 +295,26 @@ t_list* filtrar_huecos_por_tamanio(t_list* huecos, uint32_t tamanio_seg) {
     }
 
     return filtrados;
+}
+
+char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
+    FILE* archivo = fopen(path, "r");
+    if (archivo == NULL){
+        return NULL;
+    }
+    char* linea = malloc(128); //espacio suficiente para una instruccion
+    uint32_t renglon_actual = 0; //contador
+
+    //recorro el archivo renglon por renglon
+    while(fgets(linea, 128, archivo) != NULL) { //leo una linea completa de un archivo txt
+        if(renglon_actual == pc) { //encontramos el pc buscado, se saca el \n del final si existe
+            linea[strcspn(linea, "\n")] = '\0';
+            fclose(archivo);
+            return linea; //buffer donde se va a guardar lo que leyo
+        }
+        renglon_actual ++;
+    }
+    fclose(archivo);
+    free(linea);
+    return NULL;
 }
