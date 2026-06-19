@@ -12,7 +12,6 @@ int main(int argc, char* argv[])
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
     }
-    memoria_corrupta = false;
 
     t_config_valores config_memoria;
 
@@ -37,6 +36,9 @@ int main(int argc, char* argv[])
 
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);
+
+    char* ip_ks = config_memoria -> ip_ks;
+    char* puerto_ks = config_memoria -> puerto_ks;
 
     int fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
     handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
@@ -132,7 +134,7 @@ void* manejar_cliente(void* arg)  {
             log_error(logger, "Cliente desconectado del socket %d", cliente_fd);
             if (id_recibida == MOD_MEMORY_STICK) {
                 sacar_stick(cliente_fd);
-                int op= OP_BSOD
+                int op= OP_BSOD;
                 send(fd_ks_bsod,&op,sizeof(int),0);
             }
             close(cliente_fd);

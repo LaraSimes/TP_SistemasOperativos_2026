@@ -1,3 +1,6 @@
+#ifndef COMUN_H
+#define COMUN_H
+
 #include "utils/general.h"
 
 typedef struct{
@@ -41,4 +44,4 @@ extern t_list* sticks;
 extern int fd_KS;
 extern uint32_t max_segmento;
 
-
+#endif
