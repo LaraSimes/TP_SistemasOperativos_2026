@@ -126,15 +126,23 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             suspender_proceso(p);
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
+            break;
         }
         case OP_DESUSPEND:{
             int pid;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
             t_rsp_KM resp = desuspender_proceso(pid);
-            send(cliente_fd,&resp, sizeof(exito),0);
+            send(cliente_fd,&resp, sizeof(resp),0);
+            break;
+        }
+        case OP_COMPACT_OK:{
+            t_rsp_KM resultado = compactar();
+            send(cliente_fd,&resultado, sizeof(resultado),0);
+            break;
         }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
+            break;
     }
 }
 
@@ -426,12 +434,12 @@ t_rsp_KM desuspender_proceso(int pid){
     send(fd_SWAP,&op,sizeof(op),0);
     send(fd_SWAP,&pid,sizeof(int),0);
     recv(fd_SWAP,&cantidad_seg,sizeof(int),MSG_WAITALL);
-    for(int i=0;i<cantidad_seg,i++){
+    for(int i=0;i<cantidad_seg;i++){
         int id;
         uint32_t tamanio;
         recv(fd_SWAP,&id,sizeof(int),0);
         recv(fd_SWAP,&tamanio,sizeof(uint32_t),0);
-        void* contenido = malloc(tamanio);
+        uint8_t* contenido = malloc(tamanio);
         recv(fd_SWAP, contenido, tamanio, MSG_WAITALL);
         t_segmento* desus=crear_segmento(id,tamanio);
         ret = agregar_segmento(pid,desus);
@@ -443,5 +451,64 @@ t_rsp_KM desuspender_proceso(int pid){
         escribir_memoria(desus->base, contenido, tamanio);
         free(contenido);
     }
+    return ret;
+}
+
+bool menor_base(void* a, void* b) {
+    t_segmento* seg_a = (t_segmento*) a;
+    t_segmento* seg_b = (t_segmento*) b;
+
+    return seg_a->base < seg_b->base;
+}
+
+t_rsp_KM compactar(){
+    uint32_t base = 0;
+    t_rsp_KM ret=OK;
+    pthread_mutex_lock(&mutex_lista_segmentos);
+    list_sort(segmentos, menor_base);
+    for(int i = 0; i<list_size(segmentos);i++){
+        t_segmento* seg = list_get(segmentos,i);
+        uint8_t* contenido = malloc(seg->tamanio);
+        if (contenido == NULL) {
+            pthread_mutex_unlock(&mutex_lista_segmentos);
+            return ERROR;
+        }
+        ret= leer_dir(seg->base,seg->tamanio,contenido,0);
+        if(ret<0){
+            free(contenido);
+            pthread_mutex_unlock(&mutex_lista_segmentos);
+            return ret;
+        }
+        ret= escribir_dir(base, seg->tamanio,contenido,0);
+        if(ret<0){
+            free(contenido);
+            pthread_mutex_unlock(&mutex_lista_segmentos);
+            return ret;
+        }
+        seg->base = base;
+        base=+seg->tamanio;
+        free(contenido);
+    }
+    pthread_mutex_unlock(&mutex_lista_segmentos);
+    pthread_mutex_lock(&mutex_lista_sticks);
+    uint32_t tamanio = 0;
+    for(int i=0;i<list_size(sticks);i++){
+        t_stick* s = list_get(sticks,i);
+        tamanio =+ s->tamanio;
+    }
+    pthread_mutex_unlock(&mutex_lista_sticks);
+    pthread_mutex_lock(&mutex_lista_huecos);
+    list_clean_and_destroy_elements(huecos_libres, free);
+    if((tamanio-base)!= 0){
+        t_hueco* nuevo = malloc(sizeof(t_hueco));
+        if (nuevo == NULL) {
+            pthread_mutex_unlock(&mutex_lista_huecos);
+            return ERROR;
+        }
+        nuevo->base = base;
+        nuevo->tamanio = tamanio - base;
+        list_add(huecos_libres,nuevo);
+    }
+    pthread_mutex_unlock(&mutex_lista_huecos);
     return ret;
 }
