@@ -1,25 +1,26 @@
-include "operaciones.h"
+#include "operaciones.h"
 
 void manejar_operacion(int cliente_fd, t_operacion cod_op){
     switch(cod_op){
-        case OP_GET_PROCESO:
+        case OP_GET_PROCESO:{
             int pid, tam_path;
             recv(cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &tam_path, sizeof(int), MSG_WAITALL);
             char* path = malloc(tam_path);
             recv(cliente_fd, path, tam_path, MSG_WAITALL);
-            t_rsp_KM resultado= crear_proceso(pid, path);
-            send(socket_cliente, &resultado, sizeof(resultado), 0);
+            crear_proceso(pid, path);
+            t_rsp_KM resultado = OK;
+            send(cliente_fd, &resultado, sizeof(resultado), 0);
             log_info(logger,"## PID: %d - Proceso Creado", pid);
             break;
-
-        case OP_GET_FREE_SPACE:
+        }
+        case OP_GET_FREE_SPACE:{
             uint32_t espacio = obtener_espacio_libre();
             send(cliente_fd, &espacio, sizeof(uint32_t), 0);
             log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes", espacio);
             break;
-
-        case OP_MEM_ALLOC:
+        }
+        case OP_MEM_ALLOC:{
             int pid, id_segmento;
             uint32_t tamanio;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
@@ -29,16 +30,16 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             t_rsp_KM resultado = agregar_segmento(pid, seg);
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
-
-        case OP_MEM_FREE:
+        }
+        case OP_MEM_FREE:{
             int pid, id_segmento;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
-            t_rsp_KM respuesta = eliminar_segmento(proceso,id_segmento);
+            t_rsp_KM respuesta = eliminar_segmento(pid,id_segmento);
             send (cliente_fd, &respuesta,sizeof(respuesta),0);
             break;
-            
-        case OP_READ_MEM:
+        }
+        case OP_READ_MEM:{
             int pid;
             uint32_t tamanio, dir_fisica;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
@@ -50,8 +51,8 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             send(cliente_fd,leido,tamanio,0);
             log_info(logger, "##PID: %d, Escritura, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
             break;
-
-        case OP_WRITE_MEM:
+        }
+        case OP_WRITE_MEM:{
             int pid;
             uint32_t tamanio, dir_fisica;
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
@@ -62,6 +63,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, &contenido, pid);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             break;
+        }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
     }
@@ -93,16 +95,16 @@ uint32_t obtener_espacio_libre() {
     pthread_mutex_lock(&mutex_lista_huecos);
     for (int i = 0; i < list_size(huecos_libres); i++) {
         t_hueco* hueco = list_get(huecos_libres, i);
-        total += hueco->tamaño;
+        total += hueco->tamanio;
     }
     pthread_mutex_unlock(&mutex_lista_huecos);
     return total;
 }
 
-t_segmento* crear_segmento(int id_segmento, int tamanio) {
+t_segmento* crear_segmento(int id_segmento, uint32_t tamanio) {
     t_segmento* nuevo_segmento = malloc(sizeof(t_segmento));
     nuevo_segmento->id_segmento = id_segmento;
-    nuevo_segmento->tamaño = tamanio;
+    nuevo_segmento->tamanio = tamanio;
     return nuevo_segmento;
 }
 
@@ -118,7 +120,7 @@ t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
     }
     phtread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
-    t_list posibles =list_filter(huecos_libres, (void*)hueco->tamanio >= tamanio_seg);
+    t_list* posibles =filtrar_huecos_por_tamanio(huecos_libres,tamanio_seg);
     if (list_is_empty(posibles)) {
         free(seg);
         pthread_mutex_unlock(&mutex_lista_segmentos);
@@ -127,8 +129,10 @@ t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
         return FRAGMENTACION_EXT;
     }
     t_hueco* hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);
+    list_destroy(posibles);
     if(hueco_elegido-> tamanio == tamanio_seg){
-        list_remove_and_destroy_element (huecos_libres, hueco_elegido);
+        list_remove_element (huecos_libres, hueco_elegido);
+        free (hueco_elegido);
     }
     else{
         seg->base = hueco_elegido->base;
@@ -139,7 +143,7 @@ t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
     pthread_mutex_unlock(&mutex_lista_segmentos);
     pthread_mutex_unlock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_procesos);
-    list_add(proceso->contexto->segmentos,seg);
+    list_add(proceso->contexto.segmentos,seg);
     pthread_mutex_unlock(&mutex_lista_procesos);
     return OK;
 }
@@ -171,7 +175,7 @@ t_stick* donde_guardo(uint32_t base){
     pthread_mutex_lock(&mutex_lista_sticks);
     for (int i=0; i<list_size(sticks);i++){
         t_stick* pruebo = list_get (sticks, i);
-        if (base >= pruebo -> base && < (pruebo->base + pruebo->tamanio)){
+        if (base >= pruebo -> base && base<(pruebo->base + pruebo->tamanio)){
             resultado = pruebo;
         }
     }
@@ -186,8 +190,8 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
     }
     t_segmento* eliminado;
     pthread_mutex_lock(&mutex_lista_procesos);
-    t_list* tabla_segmentos = proceso->contexto->segmentos;
-    for(int i = 0; i<list_size(tabla_segmentos),i++){
+    t_list* tabla_segmentos = proceso->contexto.segmentos;
+    for(int i = 0; i<list_size(tabla_segmentos);i++){
         t_segmento* s = list_get(tabla_segmentos,i);
         if(s->id_segmento == id_segmento){
             list_remove_element(tabla_segmentos, eliminado);
@@ -199,7 +203,8 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
         return SEGMENTO_NOT_FOUND;
     }
     pthread_mutex_lock(&mutex_lista_segmentos);
-    list_remove_and_destroy_element(segmentos,eliminado);
+    list_remove_element(segmentos,eliminado);
+    free(eliminado);
     pthread_mutex_unlock(&mutex_lista_segmentos);
     return OK;
 }
@@ -256,4 +261,16 @@ t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uin
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
     return escribir_dir(siguiente_base,restante,escrito,b_escritos);
+}
+t_list* filtrar_huecos_por_tamanio(t_list* huecos, uint32_t tamanio_seg) {
+    t_list* filtrados = list_create();
+    for (int i = 0; i < list_size(huecos); i++) {
+        t_hueco* hueco = list_get(huecos, i);
+
+        if (hueco->tamanio >= tamanio_seg) {
+            list_add(filtrados, hueco);
+        }
+    }
+
+    return filtrados;
 }

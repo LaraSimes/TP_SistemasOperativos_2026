@@ -2,6 +2,7 @@
 #define COMUN_H
 
 #include "utils/general.h"
+#include <stddef.h>  
 
 typedef struct{
     char* log_level;
@@ -25,7 +26,7 @@ typedef struct {
 typedef struct {
     uint32_t base;
     uint32_t tamanio;
-} t_hueco_libre;
+} t_hueco;
 
 typedef struct {
     int fd_stick;
@@ -43,5 +44,6 @@ extern t_list* segmentos;
 extern t_list* sticks;
 extern int fd_KS;
 extern uint32_t max_segmento;
+extern t_log* logger;
 
 #endif

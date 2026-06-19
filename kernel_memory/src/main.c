@@ -1,13 +1,12 @@
 #include "main.h"
 
-t_log* logger;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
 int pid_a_buscar;
 uint32_t max_segmento;
+int fd_ks_bsod;
 
-int main(int argc, char* argv[]) 
-{
+int main(int argc, char* argv[]) {
     if(argc <2){
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
@@ -37,10 +36,10 @@ int main(int argc, char* argv[])
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);
 
-    char* ip_ks = config_memoria -> ip_ks;
-    char* puerto_ks = config_memoria -> puerto_ks;
+    char* ip_ks = config_memoria.ip_ks;
+    char* puerto_ks = config_memoria.puerto_ks;
 
-    int fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
+    fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
     handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
 
 
@@ -80,13 +79,6 @@ bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o fa
     return proceso->pid == pid_a_buscar;
 }   
 
-t_proceso_control* buscar_proceso_por_pid(int pid){ //busco el proceso a traves de la funcion _es_el_proceso pasandole el pid_a_buscar como variable global
-    pid_a_buscar = pid; 
-    pthread_mutex_lock(&mutex_lista_procesos);  
-    t_proceso_control* resultado = list_find(procesos_activos, _es_el_proceso);
-    pthread_mutex_unlock(&mutex_lista_procesos);
-    return resultado;
-}
 
 char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
     FILE* archivo = fopen(path, "r");
@@ -126,7 +118,7 @@ void* manejar_cliente(void* arg)  {
     }
     int recibido = 0;
     send(cliente_fd, &recibido, sizeof(int), 0);
-    identificar_modulo(id_recibida, logger);
+    identificar_modulo(id_recibida, logger,cliente_fd);
 
     while (true) { // el hilo se queda activo hasta que el cliente se desconecta
         int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);

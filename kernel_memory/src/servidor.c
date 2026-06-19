@@ -1,4 +1,4 @@
-include "servidor.h"
+#include "servidor.h"
 int iniciar_servidor(char*puerto)
 {
 	int err;
@@ -56,7 +56,7 @@ int esperar_cliente(int socket_servidor)
     }
 	return socket_cliente;
 }
-void identificar_modulo(t_modulo id_recibida, t_log* logger){
+void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
     switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
             log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d", cliente_fd);
@@ -64,8 +64,9 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
             break;
         
         case MOD_CPU:
+            int cpu_id;
             recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
-            if (bytes <= 0) {
+            if (cpu_id <= 0) {
                 log_error(logger, "Error recibiendo ID de CPU");
                 close(cliente_fd);
                 return NULL;
@@ -97,50 +98,50 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger){
 }
 
 void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
-    t_stick nuevo_stick = malloc (sizeof(t_stick));
+    t_stick* nuevo_stick = malloc (sizeof(t_stick));
     pthread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
     if (is_empty(huecos_libres)) {
         if (is_empty(segmentos)){
-        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
+        t_hueco* nuevo_hueco = malloc(sizeof(t_hueco));
         nuevo_hueco->base = 0;
-        nuevo_hueco->tamaño = tamanio_ms;
+        nuevo_hueco->tamanio = tamanio_ms;
         list_add(huecos_libres, nuevo_hueco);
         pthread_mutex_unlock(&mutex_lista_segmentos);
         pthread_mutex_unlock(&mutex_lista_huecos);
         return;
         }
         t_segmento* ultimo_segmento = list_get_maximum(segmentos, comparar_bases_segmento);
-        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
-        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamaño;
-        nuevo_hueco->tamaño = tamanio_ms;
+        t_hueco* nuevo_hueco = malloc(sizeof(t_hueco));
+        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamanio;
+        nuevo_hueco->tamanio = tamanio_ms;
         list_add(huecos_libres, nuevo_hueco);
         pthread_mutex_unlock(&mutex_lista_segmentos);
         pthread_mutex_unlock(&mutex_lista_huecos);
         return;
     }
     if (is_empty(segmentos)) {
-        t_hueco_libre* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
-        ultimo_hueco->tamaño = ultimo_hueco->tamaño + tamanio_ms;
+        t_hueco* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
+        ultimo_hueco->tamanio = ultimo_hueco->tamanio + tamanio_ms;
         pthread_mutex_unlock(&mutex_lista_segmentos);
         pthread_mutex_unlock(&mutex_lista_huecos);
         return;
     }
-    t_hueco_libre* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
+    t_hueco* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
     t_segmento* ultimo_segmento = list_get_maximum(segmentos, comparar_bases_segmento);
     if (ultimo_hueco->base > ultimo_segmento->base){
-        ultimo_hueco->tamaño = ultimo_hueco->tamaño + tamanio_ms;
+        ultimo_hueco->tamanio = ultimo_hueco->tamanio + tamanio_ms;
     }
     else{
-        t_hueco_libre* nuevo_hueco = malloc(sizeof(t_hueco_libre));
-        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamaño;
-        nuevo_hueco->tamaño = tamanio_ms;
+        t_hueco* nuevo_hueco = malloc(sizeof(t_hueco));
+        nuevo_hueco->base = ultimo_segmento->base + ultimo_segmento->tamanio;
+        nuevo_hueco->tamanio = tamanio_ms;
         list_add(huecos_libres, nuevo_hueco);
     }
     pthread_mutex_unlock(&mutex_lista_segmentos);
     pthread_mutex_unlock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_sticks);
-    t_stick ultimo_stick = list_get (sticks, list_size(sticks)-1);
+    t_stick* ultimo_stick = list_get (sticks, list_size(sticks)-1);
     if (ultimo_stick == NULL){
         nuevo_stick -> fd_stick = stick_fd;
         nuevo_stick -> base = 0;
@@ -149,7 +150,7 @@ void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
         pthread_mutex_unlock(&mutex_lista_sticks);
         return;
     }
-    nuevo_stick -> id_stick = stick_fd;
+    nuevo_stick -> fd_stick = stick_fd;
     nuevo_stick -> base = ultimo_stick -> base + ultimo_stick-> tamanio;
     nuevo_stick -> tamanio = tamanio_ms;
     list_add(sticks, nuevo_stick);
@@ -160,9 +161,8 @@ void sacar_stick(int cliente_fd) {
     pthread_mutex_lock(&mutex_lista_sticks);
     for (int i = 0; i < list_size(sticks); i++) {
         t_stick* stick = list_get(sticks, i);
-        if (stick->mstick_fd == cliente_fd) {
+        if (stick->fd_stick == cliente_fd) {
             list_remove_and_destroy_element(sticks, i, (void*)free);
-            memoria_corrupta = true;
             pthread_mutex_unlock(&mutex_lista_sticks);
             return;
         }
@@ -170,7 +170,7 @@ void sacar_stick(int cliente_fd) {
     pthread_mutex_unlock(&mutex_lista_sticks);
 }
 
-void* comparar_bases_hueco(t_hueco_libre* h1, t_hueco_libre* h2) {
+void* comparar_bases_hueco(t_hueco* h1, t_hueco* h2) {
     return h1->base >= h2->base ? h1 : h2;
 }
 void* comparar_bases_segmento(t_segmento* s1, t_segmento* s2) {
