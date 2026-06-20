@@ -3,6 +3,7 @@
 
 #include "utils/general.h"
 #include <stddef.h>  
+#include <pthread.h>
 
 typedef struct{
     char* log_level;
@@ -34,10 +35,10 @@ typedef struct {
     uint32_t tamanio;
 }t_stick; //estructura para manejo de sticks
 
-pthread_mutex_t mutex_lista_procesos;
-pthread_mutex_t mutex_lista_huecos;
-pthread_mutex_t mutex_lista_segmentos;
-pthread_mutex_t mutex_lista_sticks;
+extern pthread_mutex_t mutex_lista_procesos;
+extern pthread_mutex_t mutex_lista_huecos;
+extern pthread_mutex_t mutex_lista_segmentos;
+extern pthread_mutex_t mutex_lista_sticks;
 extern t_list* procesos_activos;
 extern t_list* huecos_libres;
 extern t_list* segmentos;

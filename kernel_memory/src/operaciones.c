@@ -48,7 +48,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t *leido=malloc(tamanio);
-            t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,0);
+            t_rsp_KM respuesta = leer_dir(dir_fisica,tamanio,leido,0);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             if(respuesta<0){
                 free(leido);
@@ -110,9 +110,9 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             }
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
-            t_contexto* contextoProceso = obtener_contexto(proceso);
-            send(cliente_fd,contextoProceso,sizeof(contextoProceso),0);
-            enviar_segmentos(cliente_fd,contextoProceso->segmentos);
+            t_contexto contextoProceso = obtener_contexto(proceso);
+            send(cliente_fd,&contextoProceso,sizeof(contextoProceso),0);
+            enviar_segmentos(cliente_fd,contextoProceso.segmentos);
             break;
         }
         case OP_SET_CONTEXT:{
@@ -207,7 +207,7 @@ t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
     if (proceso == NULL) {
         return PID_NOT_FOUND;
     }
-    phtread_mutex_lock(&mutex_lista_huecos);
+    pthread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
     t_list* posibles =filtrar_huecos_por_tamanio(huecos_libres,tamanio_seg);
     if (list_is_empty(posibles)) {
@@ -387,11 +387,11 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc) {
     return NULL;
 }
 
-t_contexto* obtener_contexto(t_proceso_control* proceso){
+t_contexto obtener_contexto(t_proceso_control* proceso){
     pthread_mutex_lock(&mutex_lista_procesos);
-    t_contexto* ret = proceso-> contexto;
+    t_contexto ret = proceso->contexto;
     pthread_mutex_unlock(&mutex_lista_procesos);
-    free(ret);
+    return ret;
 }
 
 void enviar_segmentos(int cliente_fd, t_list* segmentos) {
@@ -408,29 +408,29 @@ void enviar_segmentos(int cliente_fd, t_list* segmentos) {
 
 void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt){
     pthread_mutex_lock(&mutex_lista_procesos);
-    t_contexto* actual = proceso->contexto;
-    contexto->pc= cxt->pc;
-    contexto->ax = cxt->ax;
-    contexto->bx = cxt->bx;
-    contexto->cx = cxt->cx;
-    contexto->dx = cxt->dx;
-    contexto->eax = cxt->eax;
-    contexto->ebx = cxt->ebx;
-    contexto->ecx = cxt->ecx;
-    contexto->edx = cxt->edx;
-    contexto->si = cxt -> si;
-    contexto->di = cxt ->di;
+    t_contexto* actual = &(proceso->contexto);
+    actual->pc= cxt->pc;
+    actual->ax = cxt->ax;
+    actual->bx = cxt->bx;
+    actual->cx = cxt->cx;
+    actual->dx = cxt->dx;
+    actual->eax = cxt->eax;
+    actual->ebx = cxt->ebx;
+    actual->ecx = cxt->ecx;
+    actual->edx = cxt->edx;
+    actual->si = cxt -> si;
+    actual->di = cxt ->di;
     pthread_mutex_unlock(&mutex_lista_procesos);
 }
 
 void suspender_proceso(t_proceso_control* proceso){
-    t_operacion OP_SUSPEND;
+    t_operacion op = OP_SUSPEND;
     send(fd_SWAP,&op,sizeof(op),0);
     pthread_mutex_lock(&mutex_lista_segmentos);
-    t_segmento* segmentos = proceso->contexto.segmentos;
+    t_list* segmentos = proceso->contexto.segmentos;
     pthread_mutex_unlock(&mutex_lista_segmentos);
     for(int i=0;i<list_size(segmentos);i++){
-        t_segmento* seg = list.get(segmentos,i);
+        t_segmento* seg = list_get(segmentos,i);
         int id = seg->id_segmento;
         uint32_t tamanio = seg->tamanio;
         send(fd_SWAP,&id,sizeof(int),0);
@@ -460,7 +460,7 @@ t_rsp_KM desuspender_proceso(int pid){
             free(desus);
             return ret;
         }
-        escribir_memoria(desus->base, contenido, tamanio);
+        escribir_dir(desus->base, tamanio, contenido,0);
         free(contenido);
     }
     return ret;

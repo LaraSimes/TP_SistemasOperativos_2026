@@ -1,5 +1,14 @@
 #include "main.h"
-
+pthread_mutex_t mutex_lista_procesos;
+pthread_mutex_t mutex_lista_huecos;
+pthread_mutex_t mutex_lista_segmentos;
+pthread_mutex_t mutex_lista_sticks;
+t_log* logger;
+t_list* huecos_libres;
+t_list* segmentos;
+int fd_SWAP;
+int fd_KS;
+t_list* sticks;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
 int pid_a_buscar;
@@ -11,14 +20,15 @@ int main(int argc, char* argv[]) {
         printf("Error a la hora de pasar la ruta del archivo de configuracion\n");
         return EXIT_FAILURE;
     }
-
+    huecos_libres = list_create();
+    segmentos = list_create();
     t_config_valores config_memoria;
 
     config=iniciar_config(argv[1]);
 
     cargar_informacion_configuracion(config, &config_memoria);
 
-    max_segmento =(uint32_t*) config_memoria.segment_max_size;
+    max_segmento = config_memoria.segment_max_size;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 

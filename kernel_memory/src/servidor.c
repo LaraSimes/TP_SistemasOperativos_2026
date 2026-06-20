@@ -102,8 +102,8 @@ void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
     t_stick* nuevo_stick = malloc (sizeof(t_stick));
     pthread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
-    if (is_empty(huecos_libres)) {
-        if (is_empty(segmentos)){
+    if (list_is_empty(huecos_libres)) {
+        if (list_is_empty(segmentos)){
         t_hueco* nuevo_hueco = malloc(sizeof(t_hueco));
         nuevo_hueco->base = 0;
         nuevo_hueco->tamanio = tamanio_ms;
@@ -121,7 +121,7 @@ void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
         pthread_mutex_unlock(&mutex_lista_huecos);
         return;
     }
-    if (is_empty(segmentos)) {
+    if (list_is_empty(segmentos)) {
         t_hueco* ultimo_hueco = list_get_maximum(huecos_libres, comparar_bases_hueco);
         ultimo_hueco->tamanio = ultimo_hueco->tamanio + tamanio_ms;
         pthread_mutex_unlock(&mutex_lista_segmentos);
