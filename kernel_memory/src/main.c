@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    log_info(logger, "Estoy escuchando en el puerto: %s", config_memoria.puerto_escucha); //ejemplo
+    log_info(logger, "Estoy escuchando en el puerto: %s \n", config_memoria.puerto_escucha); //ejemplo
 
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);

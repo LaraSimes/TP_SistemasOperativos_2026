@@ -11,13 +11,13 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             crear_proceso(pid, path);
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
-            log_info(logger,"## PID: %d - Proceso Creado", pid);
+            log_info(logger,"## PID: %d - Proceso Creado \n", pid);
             break;
         }
         case OP_GET_FREE_SPACE:{
             uint32_t espacio = obtener_espacio_libre();
             send(cliente_fd, &espacio, sizeof(uint32_t), 0);
-            log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes", espacio);
+            log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes \n", espacio);
             break;
         }
         case OP_MEM_ALLOC:{
@@ -29,6 +29,8 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             t_segmento* seg = crear_segmento(id_segmento, tamanio);
             t_rsp_KM resultado = agregar_segmento(pid, seg);
             send(cliente_fd,&resultado, sizeof(resultado),0);
+            if(resultado<0){break;}
+            log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %u \n", pid,id_segmento,tamanio);
             break;
         }
         case OP_MEM_FREE:{
@@ -48,8 +50,12 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             uint8_t *leido=malloc(tamanio);
             t_rsp_KM respuesta = leer_dir(dir_fisica,leido,tamanio,0);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
+            if(respuesta<0){
+                free(leido);
+                break;
+            }
             send(cliente_fd,leido,tamanio,0);
-            log_info(logger, "##PID: %d, Escritura, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
+            log_info(logger, "##PID: %d, Lectura, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
             break;
         }
         case OP_WRITE_MEM:{
@@ -62,6 +68,11 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd,&contenido,tamanio,MSG_WAITALL);
             t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, &contenido, pid);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
+            if(respuesta<0){
+                free(contenido);
+                break;
+            }
+            log_info(logger, "##PID: %d, Escritur, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
             break;
         }
         case OP_GET_INSTRUCCION:{
@@ -85,6 +96,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             int tamanio=strlen(instruccion);
             send(cliente_fd,&tamanio, sizeof(int),0);
             send(cliente_fd,instruccion,tamanio,0);
+            log_info(logger, "## PID: %d - Obtener instrucción: %d - Instrucción: %s \n", pid, pc, instruccion);
             free(instruccion);
         }
         case OP_GET_CONTEXT:{
@@ -461,7 +473,7 @@ bool menor_base(void* a, void* b) {
     return seg_a->base < seg_b->base;
 }
 
-t_rsp_KM compactar(){
+t_rsp_KM compactar(void){
     uint32_t base = 0;
     t_rsp_KM ret=OK;
     pthread_mutex_lock(&mutex_lista_segmentos);

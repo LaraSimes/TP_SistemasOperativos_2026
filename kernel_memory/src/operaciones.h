@@ -22,4 +22,7 @@ void enviar_segmentos(int cliente_fd, t_list* segmentos);
 void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt);
 void suspender_proceso(t_proceso_control* proceso);
 t_rsp_KM desuspender_proceso(int pid);
+bool menor_base(void* a, void* b);
+t_rsp_KM compactar(void);
+
 #endif

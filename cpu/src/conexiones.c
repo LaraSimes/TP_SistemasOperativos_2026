@@ -11,7 +11,7 @@ void cargar_informacion_configuracion(t_config* config, t_config_valores* valore
     valores->ip_memory_stick     = config_get_string_value(config, "IP_MEMORY_STICK");
     valores->puerto_memory_stick = config_get_string_value(config, "PUERTO_MEMORY_STICK");
 
-log_info(logger, "Config cargada - KS: %s:%s | KM: %s:%s", 
+log_info(logger, "Config cargada - KS: %s:%s | KM: %s:%s \n", 
     valores->ip_kernel_scheduler, valores->puerto_kernel_scheduler,
     valores->ip_kernel_memory,    valores->puerto_kernel_memory); // informa que la config se leyo bien
 }

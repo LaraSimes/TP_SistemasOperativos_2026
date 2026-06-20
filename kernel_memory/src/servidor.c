@@ -59,7 +59,7 @@ int esperar_cliente(int socket_servidor)
 void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
     switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
-            log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d", cliente_fd);
+            log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d \n", cliente_fd);
             fd_KS = cliente_fd;
             break;
         
@@ -71,7 +71,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
                 close(cliente_fd);
                 return NULL;
             }
-            log_info(logger, "## CPU %d Conectada", cpu_id);
+            log_info(logger, "## CPU %d Conectada \n", cpu_id);
             break;
         
         case MOD_MEMORY_STICK:{
@@ -83,13 +83,13 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
                 return NULL;
             }
             agregar_hueco_libre(tamanio_ms_recibido, cliente_fd);
-            log_info(logger, "## Memory Stick de %d bytes Conectada", tamanio_ms_recibido);
+            log_info(logger, "## Memory Stick de %d bytes Conectada \n", tamanio_ms_recibido);
             break;
         }
         
         case MOD_SWAP:
             fd_SWAP = cliente_fd;
-            log_info(logger, "## SWAP Conectado");
+            log_info(logger, "## SWAP Conectado \n");
             break;
 
         default:
