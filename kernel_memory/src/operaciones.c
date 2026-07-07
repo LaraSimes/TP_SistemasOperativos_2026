@@ -77,41 +77,60 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         }
         case OP_GET_INSTRUCCION:{
             int pid,pc;
+            t_rsp_KM resp;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
             recv(cliente_fd,&pc,sizeof(int),MSG_WAITALL);
+            log_info(logger, "KM recibio pedido de instruccion. PID: %d - PC: %d", pid, pc);
             t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+            log_info(logger, "Despues de buscar_proceso_por_pid. proceso ptr: %p", (void*) proceso);
             if (proceso==NULL) {
-                t_rsp_KM resp = PID_NOT_FOUND;
+                log_error(logger, "No se encontro proceso PID: %d", pid);
+                resp = PID_NOT_FOUND;
                 send(cliente_fd,&resp, sizeof(resp),0);
+                break;
+            }
+            log_info(logger, "Proceso encontrado. ptr: %p", (void*) proceso);
+            log_info(logger, "PID guardado en proceso: %d", proceso->pid);
+            log_info(logger, "Path ptr: %p", (void*) proceso->path_instrucciones);
+            if (proceso->path_instrucciones == NULL) {
+                log_error(logger, "Path del proceso es NULL");
+                resp = ERROR;
+                send(cliente_fd, &resp, sizeof(resp), 0);
                 break;
             }
             char* instruccion = leer_instruccion_de_archivo(proceso->path_instrucciones,pc);
             if(instruccion==NULL){
-                t_rsp_KM resp2= ERROR;
-                send(cliente_fd,&resp2, sizeof(resp2),0);
+                log_error(logger,"leer_instruccion_de_archivo devolvio NULL. PID: %d - PC: %d - Path: %s",pid,pc,proceso->path_instrucciones);
+                resp= ERROR;
+                send(cliente_fd,&resp, sizeof(resp),0);
                 break;
             }
-            t_rsp_KM exito = OK;
-            send(cliente_fd,&exito, sizeof(exito),0);
+            log_info(logger, "Instruccion leida antes de OK: %s", instruccion);
+            resp = OK;
+            send(cliente_fd,&resp, sizeof(resp),0);
+            log_info(logger, "KM mando OK");
             int tamanio=strlen(instruccion);
+            log_info(logger,"Estoy mandando tamanio %d \n",tamanio);
             send(cliente_fd,&tamanio, sizeof(int),0);
             send(cliente_fd,instruccion,tamanio,0);
             log_info(logger, "## PID: %d - Obtener instrucción: %d - Instrucción: %s \n", pid, pc, instruccion);
             free(instruccion);
+            break;
         }
         case OP_GET_CONTEXT:{
-            int pid;
+            int pid, tamanio;
+            t_rsp_KM resp;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
             t_proceso_control* proceso = buscar_proceso_por_pid(pid);
             if (proceso==NULL) {
-                t_rsp_KM resp = PID_NOT_FOUND;
+                resp = PID_NOT_FOUND;
                 send(cliente_fd,&resp, sizeof(resp),0);
                 break;
             }
-            t_rsp_KM exito = OK;
-            send(cliente_fd,&exito, sizeof(exito),0);
+            resp = OK;
+            send(cliente_fd,&resp, sizeof(int),0);
             t_contexto contextoProceso = obtener_contexto(proceso);
-            send(cliente_fd,&contextoProceso,sizeof(contextoProceso),0);
+            send(cliente_fd,&contextoProceso,sizeof(t_contexto),0);
             enviar_segmentos(cliente_fd,contextoProceso.segmentos);
             break;
         }
@@ -153,8 +172,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             break;
         }
         case KS_SERVER_OK:{
-            char* ip_ks = config_memoria.ip_ks;
-            char* puerto_ks = config_memoria.puerto_ks;
             fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
             handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
             break;
@@ -169,7 +186,7 @@ void crear_proceso(int pid, char* path) {
     // creo el proceso en la lista
     t_proceso_control* nuevo_proceso = calloc(1, sizeof(t_proceso_control)); 
     nuevo_proceso->pid = pid;
-    nuevo_proceso->path_instrucciones = path;
+    nuevo_proceso->path_instrucciones = strdup(path);
     //guardar el proceso creado en una lista global ya que esta fuera del main.c
     //guarda punteros a las estructuras de t_proceso_control declarado en el main.h
     pthread_mutex_lock(&mutex_lista_procesos);
@@ -402,10 +419,13 @@ t_contexto obtener_contexto(t_proceso_control* proceso){
 }
 
 void enviar_segmentos(int cliente_fd, t_list* segmentos) {
-    int cantidad_segmentos = list_size(segmentos);
+    int cantidad_segmentos = 0;
 
+    if (segmentos != NULL) {
+        cantidad_segmentos = list_size(segmentos);
+    }
+    log_info(logger, "KM envia cantidad_segmentos: %d", cantidad_segmentos);
     send(cliente_fd, &cantidad_segmentos, sizeof(int), 0);
-
     for (int i = 0; i < cantidad_segmentos; i++) {
         t_segmento* segmento = list_get(segmentos, i);
 

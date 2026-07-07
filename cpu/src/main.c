@@ -131,7 +131,10 @@ while (1) {
     while (1) {
         // FETCH
         char* instruccion = fetch(fd_km, pid, ctx.pc, logger);
-
+        if (instruccion == NULL) {
+            log_error(logger, "FETCH devolvio NULL. No ejecuto instruccion.");
+            break;
+        }
         // EXECUTE
         int tipo_io = 0; 
         int param_io = 0;

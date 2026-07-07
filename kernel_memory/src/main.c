@@ -14,6 +14,8 @@ t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo
 int pid_a_buscar;
 uint32_t max_segmento;
 int fd_ks_bsod;
+char* ip_ks;
+char* puerto_ks;
 
 int main(int argc, char* argv[]) {
     if(argc <2){
@@ -29,6 +31,8 @@ int main(int argc, char* argv[]) {
     cargar_informacion_configuracion(config, &config_memoria);
 
     max_segmento = config_memoria.segment_max_size;
+    ip_ks = config_memoria.ip_ks;
+    puerto_ks = config_memoria.puerto_ks;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 
