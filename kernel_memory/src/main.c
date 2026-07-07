@@ -46,13 +46,6 @@ int main(int argc, char* argv[]) {
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);
 
-    char* ip_ks = config_memoria.ip_ks;
-    char* puerto_ks = config_memoria.puerto_ks;
-
-    fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
-    handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
-
-
     while(true){ //logica de esperar clientes
         int cliente_fd=esperar_cliente(server_fd);
 

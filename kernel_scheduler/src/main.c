@@ -63,6 +63,8 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
     }
 	log_info(logger, "Servidor listo para recibir clientes");
+    int conectar = KS_SERVER_OK;
+    send(fd_km, &conectar, sizeof(int), 0);
 
     int server_interrupt_fd = iniciar_servidor(puerto_interrupt);  
     if (server_interrupt_fd == -1) {                               

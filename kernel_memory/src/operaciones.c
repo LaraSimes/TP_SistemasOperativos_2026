@@ -152,6 +152,13 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
         }
+        case KS_SERVER_OK:{
+            char* ip_ks = config_memoria.ip_ks;
+            char* puerto_ks = config_memoria.puerto_ks;
+            fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
+            handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
+            break;
+        }
         default:
             log_warning(logger, "Operacion desconocida de CPU");
             break;

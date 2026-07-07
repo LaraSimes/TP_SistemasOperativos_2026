@@ -46,6 +46,7 @@ typedef enum {
     OP_DESUSPEND        = 11, // KS → KM: trae de SWAP si hay espacio libre
     OP_COMPACT_OK       = 12, // KS → KM: CPUs libres, podés compactar
     OP_BSOD             = 13, // KM → KS: memoria corrupta, finalizar sistema
+    KS_SERVER_OK          = 14, // KS → KM: ya hay servidor escuchando
 } t_operacion;
 
 typedef struct {
