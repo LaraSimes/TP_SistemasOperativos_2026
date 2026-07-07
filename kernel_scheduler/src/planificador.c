@@ -7,7 +7,13 @@ extern char* planification_algorithm;
 extern char** queues_algorithms;
 extern int    queues_count;
 extern bool   queue_preemption;
+typedef struct {
+    int pid;
+    int numero_bloqueo;
+} t_args_suspension;
+
 static void* hilo_suspension(void* arg);
+static void encolar_block_sin_timer(t_pcb* pcb);
 extern int suspension_timeout;
 extern int fd_km;
 extern pthread_mutex_t mutex_km;
@@ -72,6 +78,7 @@ t_pcb* crear_pcb(int pid, char* path, int prioridad) {
     pcb->path_instrucciones = strdup(path);
     pcb->param_io = 0;
     pcb->fd_cpu_dispatch = -1;
+    pcb->numero_bloqueo = 0;
     memset(&pcb->contexto, 0, sizeof(t_contexto));
     return pcb;
 }
@@ -150,6 +157,27 @@ void encolar_ready(t_pcb* pcb) {
     wake_dispatcher();
 }
 
+void reencolar_ready_sin_wake(t_pcb* pcb) {
+    // Usado por el dispatcher cuando no hay CPU libre: el pcb sigue lógicamente en READY
+    // (no hace falta volver a loguear el cambio de estado) y no hay que despertar al
+    // dispatcher de nuevo, porque nada cambió (ninguna CPU se liberó). Despertar acá
+    // causaba un loop apretado sin fin: encolar -> wake -> desencolar -> sin CPU -> encolar...
+    int index;
+    if (strcmp(planification_algorithm, "CMN") == 0) {
+        index = pcb->prioridad;
+    } else {
+        index = 0;
+    }
+    if (index < 0 || index >= num_colas) {
+        log_warning(logger, "## (%d) Prioridad %d fuera de rango, proceso no planificado", pcb->pid, pcb->prioridad);
+        return;
+    }
+
+    pthread_mutex_lock(&mutex_ready);
+    queue_push(colas_ready[index], pcb);
+    pthread_mutex_unlock(&mutex_ready);
+}
+
 t_pcb* desencolar_ready() {
     pthread_mutex_lock(&mutex_ready);
     t_pcb* pcb = NULL;
@@ -165,30 +193,48 @@ t_pcb* desencolar_ready() {
 
 void encolar_block(t_pcb* pcb) {
     cambiar_estado(pcb, BLOCK);
+    pcb->numero_bloqueo++;
     pthread_mutex_lock(&mutex_block);
     queue_push(cola_block, pcb);
     pthread_mutex_unlock(&mutex_block);
 
     // Timer de suspensión
-    int* pid_arg = malloc(sizeof(int));
-    *pid_arg = pcb->pid;
+    t_args_suspension* args = malloc(sizeof(t_args_suspension));
+    args->pid = pcb->pid;
+    args->numero_bloqueo = pcb->numero_bloqueo;
     pthread_t th;
-    pthread_create(&th, NULL, hilo_suspension, pid_arg);
+    pthread_create(&th, NULL, hilo_suspension, args);
     pthread_detach(th);
 }
 
 static void* hilo_suspension(void* arg) {
-    int pid = *(int*)arg;
-    free(arg);
+    t_args_suspension* args = arg;
+    int pid = args->pid;
+    int numero_bloqueo = args->numero_bloqueo;
+    free(args);
 
     usleep((long)suspension_timeout * 1000);
 
-    // Buscar el proceso en BLOCK (si ya salió, no hacemos nada)
+    // Buscar el proceso en BLOCK (si ya salió, o si se volvió a bloquear después
+    // de este timer, no hacemos nada: este timer quedó obsoleto)
     t_pcb* pcb = buscar_en_block(pid);
     if (pcb == NULL) return NULL;
+    if (pcb->numero_bloqueo != numero_bloqueo) {
+        encolar_block_sin_timer(pcb);
+        return NULL;
+    }
 
     suspender_proceso(pcb);
     return NULL;
+}
+
+// Repone en cola_block un pcb que ya tiene su propio timer de suspensión vigente
+// (armado por el bloqueo más reciente); usado cuando un timer viejo y obsoleto
+// lo desencola solo para descartarlo.
+static void encolar_block_sin_timer(t_pcb* pcb) {
+    pthread_mutex_lock(&mutex_block);
+    queue_push(cola_block, pcb);
+    pthread_mutex_unlock(&mutex_block);
 }
 
 void suspender_proceso(t_pcb* pcb) {

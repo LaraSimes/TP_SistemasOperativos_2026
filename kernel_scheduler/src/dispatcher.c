@@ -31,8 +31,8 @@ void* dispatcher_thread(void* arg) {
 
         t_cpu* cpu = buscar_cpu_libre();
         if (cpu == NULL) {
-            // No hay CPU libre, vuelvo a encolar
-            encolar_ready(pcb);
+            // No hay CPU libre: reencolar sin despertar de nuevo al dispatcher (evita busy-loop)
+            reencolar_ready_sin_wake(pcb);
             continue;
         }
 

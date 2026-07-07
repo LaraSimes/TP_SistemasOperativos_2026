@@ -35,6 +35,7 @@ typedef struct {
     int seg_id_pendiente;
     int tamanio_pendiente;
     time_t tiempo_suspension; // timestamp al momento de pasar a SUSP_BLOCK, para desempate en intentar_desuspender
+    int numero_bloqueo; // se incrementa en cada encolar_block; invalida timers de suspensión de bloqueos anteriores
 } t_pcb;
 
 // CPU registrada
@@ -90,6 +91,7 @@ extern pthread_mutex_t mutex_susp;
 t_pcb* crear_pcb(int pid, char* path, int prioridad);
 void cambiar_estado(t_pcb* pcb, t_estado nuevo_estado);
 void encolar_ready(t_pcb* pcb);
+void reencolar_ready_sin_wake(t_pcb* pcb);
 t_cpu* buscar_cpu_libre();
 t_pcb* buscar_en_block(int pid);
 

@@ -182,14 +182,16 @@ void* atender_cliente(void* arg) {
                 case FIN_PROCESO:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de EXIT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
-                    notificar_fin_proceso_km(pcb->pid);
+                    // TEMP: KM todavía no implementa OP_FIN_PROCESO, colgaría mutex_km esperando ack. Descomentar cuando KM lo tenga.
+                    // notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
                     break;
                 case SEG_FAULT:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de SEG_FAULT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
-                    notificar_fin_proceso_km(pcb->pid);
+                    // TEMP: ídem arriba.
+                    // notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
                     break;
@@ -375,9 +377,10 @@ void* atender_cliente(void* arg) {
                         intentar_desuspender();
                      }
                       break;
-                  }                                       
-              }                                         
-        }                  
+                  }
+              }
+            wake_dispatcher();
+        }
         else if (id == MOD_IO) { // Cuando un IO termino su trabajo
             t_io_registrada* io = buscar_io_por_fd(cliente_fd);
             int pid = io->pid_actual;
