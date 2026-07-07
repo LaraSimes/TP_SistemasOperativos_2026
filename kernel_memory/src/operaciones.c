@@ -64,12 +64,12 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv (cliente_fd, &dir_fisica, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
-            uint8_t contenido = malloc (tamanio);
-            recv(cliente_fd,&contenido,tamanio,MSG_WAITALL);
-            t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, &contenido, pid);
+            uint8_t* contenido = malloc(tamanio);
+            recv(cliente_fd,contenido,tamanio,MSG_WAITALL);
+            t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, contenido, pid);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
+            free(contenido);
             if(respuesta<0){
-                free(contenido);
                 break;
             }
             log_info(logger, "##PID: %d, Escritur, Dir. fisica: %u, Tamanio: %u \n", pid, dir_fisica, tamanio);
@@ -136,16 +136,16 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         }
         case OP_SET_CONTEXT:{
             int pid;
-            t_contexto* contexto;
+            t_contexto contexto;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
-            recv(cliente_fd,contexto,sizeof(t_contexto),MSG_WAITALL);
+            recv(cliente_fd,&contexto,sizeof(t_contexto),MSG_WAITALL);
             t_proceso_control* proceso = buscar_proceso_por_pid(pid);
             if (proceso==NULL) {
                 t_rsp_KM resp = PID_NOT_FOUND;
                 send(cliente_fd,&resp, sizeof(resp),0);
                 break;
             }
-            actualizar_contexto(proceso,contexto);   
+            actualizar_contexto(proceso,&contexto);
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
             break;
@@ -301,14 +301,15 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
     if (proceso == NULL) {
         return PID_NOT_FOUND;
     }
-    t_segmento* eliminado;
+    t_segmento* eliminado = NULL;
     pthread_mutex_lock(&mutex_lista_procesos);
     t_list* tabla_segmentos = proceso->contexto.segmentos;
     for(int i = 0; i<list_size(tabla_segmentos);i++){
         t_segmento* s = list_get(tabla_segmentos,i);
         if(s->id_segmento == id_segmento){
-            list_remove_element(tabla_segmentos, eliminado);
             eliminado = s;
+            list_remove_element(tabla_segmentos, eliminado);
+            break;
         }
     }
     pthread_mutex_unlock(&mutex_lista_procesos);
@@ -343,7 +344,7 @@ t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t 
     send(stick->fd_stick,&tam,sizeof(tam),0);
     recv(stick->fd_stick,leido+b_leidos,tam,MSG_WAITALL);
     pthread_mutex_unlock(&mutex_lista_sticks);
-    b_leidos =+tam;
+    b_leidos += tam;
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
     return leer_dir(siguiente_base,restante,leido,b_leidos);
@@ -370,7 +371,7 @@ t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uin
     send(stick->fd_stick,&tam,sizeof(tam),0);
     send(stick->fd_stick,escrito+b_escritos,tam,0);
     pthread_mutex_unlock(&mutex_lista_sticks);
-    b_escritos =+tam;
+    b_escritos += tam;
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
     return escribir_dir(siguiente_base,restante,escrito,b_escritos);
@@ -525,7 +526,7 @@ t_rsp_KM compactar(void){
             return ret;
         }
         seg->base = base;
-        base=+seg->tamanio;
+        base += seg->tamanio;
         free(contenido);
     }
     pthread_mutex_unlock(&mutex_lista_segmentos);
@@ -533,7 +534,7 @@ t_rsp_KM compactar(void){
     uint32_t tamanio = 0;
     for(int i=0;i<list_size(sticks);i++){
         t_stick* s = list_get(sticks,i);
-        tamanio =+ s->tamanio;
+        tamanio += s->tamanio;
     }
     pthread_mutex_unlock(&mutex_lista_sticks);
     pthread_mutex_lock(&mutex_lista_huecos);

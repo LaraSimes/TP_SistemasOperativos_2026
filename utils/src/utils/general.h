@@ -47,6 +47,8 @@ typedef enum {
     OP_COMPACT_OK       = 12, // KS → KM: CPUs libres, podés compactar
     OP_BSOD             = 13, // KM → KS: memoria corrupta, finalizar sistema
     KS_SERVER_OK          = 14, // KS → KM: ya hay servidor escuchando
+    OP_FIN_PROCESO      = 15, // KS → KM: proceso terminó (EXIT o SEG_FAULT), liberar sus segmentos
+    OP_NUEVO_STICK      = 16, // KM → KS: se conectó un nuevo Memory Stick, hay más memoria disponible
 } t_operacion;
 
 typedef struct {

@@ -56,6 +56,8 @@ int main(int argc, char* argv[]) {
         close(fd_km);
         return EXIT_FAILURE;
     }
+    log_info(logger, "## Conectado a Kernel Memory");
+    
     // Levanta servidor multihilos
     server_fd = iniciar_servidor(puerto_escucha);
     if (server_fd == -1) {

@@ -4,6 +4,7 @@
 #include <commons/collections/queue.h>
 #include <pthread.h>
 #include <stdint.h>
+#include <time.h>
 #include "utils/general.h"
 #include "dispatcher.h"
 
@@ -31,8 +32,9 @@ typedef struct {
     uint32_t dir_fisica;    // dirección física para STDIN/STDOUT
     int fd_cpu_dispatch;    // fd de la CPU que despachó este proceso (para syscalls de memoria)
     int prioridad_original;
-    int seg_id_pendiente;     
-    int tamanio_pendiente; 
+    int seg_id_pendiente;
+    int tamanio_pendiente;
+    time_t tiempo_suspension; // timestamp al momento de pasar a SUSP_BLOCK, para desempate en intentar_desuspender
 } t_pcb;
 
 // CPU registrada
@@ -120,6 +122,7 @@ t_pcb* buscar_en_susp_block(int pid);
 void reencolar_ready(t_pcb* pcb);
 void iniciar_compactacion(t_pcb* pcb_original);
 void bsod();
+void notificar_fin_proceso_km(int pid);
 
 
 #endif

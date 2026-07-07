@@ -202,6 +202,7 @@ void suspender_proceso(t_pcb* pcb) {
     pthread_mutex_unlock(&mutex_km);
 
     cambiar_estado(pcb, SUSP_BLOCK);
+    pcb->tiempo_suspension = time(NULL);
     log_info(logger, "## (%d) Se suspende el proceso - Estado: SUSP_BLOCK", pcb->pid);
     pthread_mutex_lock(&mutex_susp);
     queue_push(cola_susp_block, pcb);
@@ -342,8 +343,11 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
     for (int i = 0; i < list_size(lista_cpus); i++) {
         t_cpu* cpu = list_get(lista_cpus, i);
         if (!cpu->libre && cpu->pcb_actual != NULL && cpu->pcb_actual->pid == owner_pid) {
-            if (nueva_prioridad < cpu->pcb_actual->prioridad)
+            if (nueva_prioridad < cpu->pcb_actual->prioridad) {
+                int prioridad_anterior = cpu->pcb_actual->prioridad;
                 cpu->pcb_actual->prioridad = nueva_prioridad;
+                log_info(logger, "## %d Cambio de prioridad: %d - %d", owner_pid, prioridad_anterior, nueva_prioridad);
+            }
             pthread_mutex_unlock(&mutex_cpus);
             return;
         }
@@ -358,9 +362,11 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
             t_pcb* pcb = list_get(elementos, j);
             if (pcb->pid == owner_pid) {
                 if (nueva_prioridad < pcb->prioridad && nueva_prioridad < num_colas) {
+                    int prioridad_anterior = pcb->prioridad;
                     list_remove(elementos, j);
                     pcb->prioridad = nueva_prioridad;
                     queue_push(colas_ready[nueva_prioridad], pcb);
+                    log_info(logger, "## %d Cambio de prioridad: %d - %d", owner_pid, prioridad_anterior, nueva_prioridad);
                 }
                 pthread_mutex_unlock(&mutex_ready);
                 return;
@@ -374,8 +380,11 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
     for (int i = 0; i < list_size(cola_block->elements); i++) {
         t_pcb* pcb = list_get(cola_block->elements, i);
         if (pcb->pid == owner_pid) {
-            if (nueva_prioridad < pcb->prioridad)
+            if (nueva_prioridad < pcb->prioridad) {
+                int prioridad_anterior = pcb->prioridad;
                 pcb->prioridad = nueva_prioridad;
+                log_info(logger, "## %d Cambio de prioridad: %d - %d", owner_pid, prioridad_anterior, nueva_prioridad);
+            }
             pthread_mutex_unlock(&mutex_block);
             return;
         }
@@ -416,7 +425,8 @@ void intentar_desuspender() {
     int mejor = -1;
     for (int i = 0; i < list_size(cola_susp_ready->elements); i++) {
         t_pcb* pcb = list_get(cola_susp_ready->elements, i);
-        if (mejor == -1 || pcb->prioridad < mejor) {
+        if (mejor == -1 || pcb->prioridad < mejor ||
+            (pcb->prioridad == mejor && pcb->tiempo_suspension < candidato->tiempo_suspension)) {
             mejor = pcb->prioridad;
             candidato = pcb;
         }
@@ -466,6 +476,7 @@ void reencolar_ready(t_pcb* pcb) { // Reencola al frente no al final
 }
 
 void iniciar_compactacion(t_pcb* pcb_original) {
+    log_info(logger, "## Inicio de compactación");
     pthread_mutex_lock(&mutex_compactacion);
     compactando = true;
 
@@ -494,7 +505,7 @@ void iniciar_compactacion(t_pcb* pcb_original) {
       int ok_compact;
       recv(fd_km, &ok_compact, sizeof(int), MSG_WAITALL);
       pthread_mutex_unlock(&mutex_km);
-      log_info(logger, "## Compactación completada");
+      log_info(logger, "## Fin de compactación");
 
     // Paso 5a: reintentar MEM_ALLOC para el proceso que lo disparó
       pthread_mutex_lock(&mutex_km);
@@ -566,4 +577,14 @@ void bsod() {
     pthread_mutex_unlock(&mutex_susp);
 
     exit(1);
+}
+
+void notificar_fin_proceso_km(int pid) {
+    pthread_mutex_lock(&mutex_km);
+    t_operacion op = OP_FIN_PROCESO;
+    send(fd_km, &op, sizeof(t_operacion), 0);
+    send(fd_km, &pid, sizeof(int), 0);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_km);
 }

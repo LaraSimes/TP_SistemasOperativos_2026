@@ -48,8 +48,8 @@ void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {
         send(fd_km, &pcb->pid, sizeof(int), 0);                                    
         send(fd_km, &pcb->dir_fisica, sizeof(uint32_t), 0);                        
         send(fd_km, &tamanio, sizeof(int), 0);                                     
-        uint32_t ok_km;                                                          
-        recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);              
+        int32_t ok_km;
+        recv(fd_km, &ok_km, sizeof(int32_t), MSG_WAITALL);
         char* buffer = calloc(tamanio + 1, 1);
         recv(fd_km, buffer, tamanio, MSG_WAITALL);          
         pthread_mutex_unlock(&mutex_km);
@@ -129,6 +129,9 @@ void* atender_cliente(void* arg) {
             if (op == OP_BSOD) {
                 log_error(logger, "## BSOD recibido desde KM");
                 bsod();
+            } else if (op == OP_NUEVO_STICK) {
+                log_info(logger, "## Nuevo Memory Stick conectado, reintentando desuspensión");
+                intentar_desuspender();
             }
         }
     }
@@ -179,15 +182,17 @@ void* atender_cliente(void* arg) {
                 case FIN_PROCESO:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de EXIT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
+                    notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
                     break;
                 case SEG_FAULT:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de SEG_FAULT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
+                    notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
-                    break;                                                                                                
+                    break;
                 case CONTINUAR:                                                                  
                     if (cpu->interrupcion_compactacion) {
                         cpu->interrupcion_compactacion = false;
@@ -386,6 +391,11 @@ void* atender_cliente(void* arg) {
                 recv(cliente_fd, &ok, sizeof(int), MSG_WAITALL);
 
                 t_pcb* pcb_stdin = buscar_en_block(pid);
+                bool pcb_estaba_suspendido = false;
+                if (pcb_stdin == NULL) {
+                    pcb_stdin = buscar_en_susp_block(pid);
+                    pcb_estaba_suspendido = true;
+                }
 
                 if (pcb_stdin != NULL) {
                     pthread_mutex_lock(&mutex_km);
@@ -395,8 +405,8 @@ void* atender_cliente(void* arg) {
                     send(fd_km, &pcb_stdin->dir_fisica, sizeof(uint32_t), 0);
                     send(fd_km, &tamanio, sizeof(int), 0);
                     send(fd_km, buffer, tamanio, 0);
-                    uint32_t ok_km;
-                    recv(fd_km, &ok_km, sizeof(uint32_t), MSG_WAITALL);
+                    int32_t ok_km;
+                    recv(fd_km, &ok_km, sizeof(int32_t), MSG_WAITALL);
                     pthread_mutex_unlock(&mutex_km);
                 }
                 free(buffer);
@@ -417,13 +427,13 @@ void* atender_cliente(void* arg) {
                 }
 
                 if (pcb_stdin != NULL) {
-                    log_info(logger, "## (%d) finalizó IO y pasa a READY", pcb_stdin->pid);
-                    encolar_ready(pcb_stdin);
-                } else {
-                    pcb_stdin = buscar_en_susp_block(pid); 
-                    if (pcb_stdin != NULL) {
+                    if (pcb_estaba_suspendido) {
+                        log_info(logger, "## (%d) finalizó IO y pasa a SUSP. READY", pcb_stdin->pid);
                         encolar_susp_ready(pcb_stdin);
                         intentar_desuspender();
+                    } else {
+                        log_info(logger, "## (%d) finalizó IO y pasa a READY", pcb_stdin->pid);
+                        encolar_ready(pcb_stdin);
                     }
                 }
 
@@ -450,6 +460,7 @@ void* atender_cliente(void* arg) {
                 } else {
                     pcb = buscar_en_susp_block(pid);
                     if (pcb != NULL) {
+                        log_info(logger, "## (%d) finalizó IO y pasa a SUSP. READY", pcb->pid);
                         encolar_susp_ready(pcb);
                         intentar_desuspender();
                     }
