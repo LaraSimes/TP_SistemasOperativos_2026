@@ -1,7 +1,8 @@
 #include "conexiones.h"
+t_config_valores valores;
+t_log *logger;
 
 int main(int argc, char* argv[]) {
-    t_log *logger;
     t_config *config;
     
     logger = iniciar_logger(MOD_SWAP,LOG_LEVEL_INFO);
@@ -10,21 +11,22 @@ int main(int argc, char* argv[]) {
 	    log_debug(logger,"No se pudo crear el config");
 		abort();
 	};
-    char *ip = config_get_string_value(config,"IP");
-	char *puerto= config_get_string_value(config,"PUERTO");
-    int sckt_Kmemory= crear_cliente(ip,puerto);
-    if (sckt_Kmemory == -1) {
+    cargar_informacion_configuracion(config, &valores);
+    int sckt_km= crear_cliente(valores.ip, valores.puerto);
+    if (sckt_km == -1) {
         log_error(logger, "No se pudo conectar a Kernel Memory");
-        liberar(logger,config,sckt_Kmemory);
+        liberar(logger,config,sckt_km);
         return -1;
     }
-    // handshakear(sckt_Kmemory,logger,MOD_KERNEL_MEMORY);
-    if (!handshake(sckt_Kmemory, logger, MOD_SWAP, MOD_KERNEL_MEMORY)) {
-        log_error(logger, "Fallo el handshake con Memoria");
-        close(sckt_Kmemory);
-        return EXIT_FAILURE;
-    } 
-    liberar(logger,config,sckt_Kmemory);
+    int conexion=handshakear(sckt_km);
+    if (conexion == -1) {
+        log_error(logger, "No se pudo completar el handshake con Kernel Memory");
+        liberar(logger,config,sckt_km);
+        return -1;
+    }
+    log_info(logger, "## Conectado a Kernel Memory\n");
+    send(sckt_km,&valores.swap_size,sizeof(int),0);
+    send(sckt_km,&valores.block_size,sizeof(int),0);
     return 0;
 }
 

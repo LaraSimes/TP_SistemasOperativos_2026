@@ -58,11 +58,11 @@ int esperar_cliente(int socket_servidor)
 }
 void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
     switch(id_recibida){ 
-        case MOD_KERNEL_SCHEDULER:
+        case MOD_KERNEL_SCHEDULER:{
             log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d \n", cliente_fd);
             break;
-        
-        case MOD_CPU:
+        }
+        case MOD_CPU:{
             int cpu_id;
             recv(cliente_fd, &cpu_id, sizeof(int), MSG_WAITALL);
             if (cpu_id <= 0) {
@@ -72,7 +72,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
             }
             log_info(logger, "## CPU %d Conectada \n", cpu_id);
             break;
-        
+        }
         case MOD_MEMORY_STICK:{
             int tamanio_ms_recibido;
             t_operacion aviso= OP_NUEVO_STICK; 
@@ -87,12 +87,23 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
             log_info(logger, "## Memory Stick de %d bytes Conectada \n", tamanio_ms_recibido);
             break;
         }
-        
-        case MOD_SWAP:
+        case MOD_SWAP:{
             fd_SWAP = cliente_fd;
-            log_info(logger, "## SWAP Conectado \n");
+            recv(cliente_fd, &tamanio_swap, sizeof(int), MSG_WAITALL);
+            if (tamanio_swap <= 0) {
+                log_error(logger, "Error recibiendo tamaño de SWAP");
+                close(cliente_fd);
+                break;
+            }
+            recv(cliente_fd, &tamanio_bloque, sizeof(int), MSG_WAITALL);
+            if (tamanio_bloque <= 0) {
+                log_error(logger, "Error recibiendo tamaño de bloque");
+                close(cliente_fd);
+                break;
+            }
+            log_info(logger, "## SWAP Conectado\n");
             break;
-
+        }
         default:
             log_warning(logger, "Módulo desconocido intentando conectarse");
             break;

@@ -44,6 +44,8 @@ extern t_list* huecos_libres;
 extern t_list* segmentos;
 extern t_list* sticks;
 extern int fd_SWAP;
+extern int tamanio_swap;
+extern int tamanio_bloque;
 extern uint32_t max_segmento;
 extern t_log* logger;
 extern int fd_ks_bsod;

@@ -7,6 +7,8 @@ t_log* logger;
 t_list* huecos_libres;
 t_list* segmentos;
 int fd_SWAP;
+int tamanio_swap;
+int tamanio_bloque;
 t_list* sticks;
 t_config* config;
 t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
