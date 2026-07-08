@@ -43,7 +43,6 @@ extern t_list* procesos_activos;
 extern t_list* huecos_libres;
 extern t_list* segmentos;
 extern t_list* sticks;
-extern int fd_KS;
 extern int fd_SWAP;
 extern uint32_t max_segmento;
 extern t_log* logger;

@@ -171,6 +171,13 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
         }
+        case OP_FIN_PROCESO:{
+            int pid;
+            recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            t_rsp_KM resultado = finalizar_proceso(pid);
+            send(cliente_fd,&resultado, sizeof(resultado),0);
+            break;
+        }
         case KS_SERVER_OK:{
             fd_ks_bsod = crear_cliente(ip_ks, puerto_ks);
             handshake(fd_ks_bsod, logger, MOD_KERNEL_MEMORY, MOD_KERNEL_SCHEDULER);
@@ -551,4 +558,24 @@ t_rsp_KM compactar(void){
     }
     pthread_mutex_unlock(&mutex_lista_huecos);
     return ret;
+}
+
+t_rsp_KM finalizar_proceso(int pid){
+    t_proceso_control* proceso = buscar_proceso_por_pid(pid);
+    if (proceso == NULL) {
+        return PID_NOT_FOUND;
+    }
+    pthread_mutex_lock(&mutex_lista_segmentos);
+    t_list* tabla_segmentos = proceso->contexto.segmentos;
+    pthread_mutex_unlock(&mutex_lista_segmentos);
+    for(int i = 0; i<list_size(tabla_segmentos);i++){
+        t_segmento* s = list_get(tabla_segmentos,i);
+        eliminar_segmento(proceso->pid,s->id_segmento);
+    }
+    pthread_mutex_lock(&mutex_lista_procesos);
+    list_remove_element(procesos_activos, proceso);
+    pthread_mutex_unlock(&mutex_lista_procesos);
+    free(proceso->path_instrucciones);
+    free(proceso);
+    return OK;
 }

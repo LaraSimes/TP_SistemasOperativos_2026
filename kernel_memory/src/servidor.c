@@ -60,7 +60,6 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
     switch(id_recibida){ 
         case MOD_KERNEL_SCHEDULER:
             log_info(logger, "## Kernel Scheduler Conectado - FD del Socket: %d \n", cliente_fd);
-            fd_KS = cliente_fd;
             break;
         
         case MOD_CPU:
@@ -76,6 +75,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
         
         case MOD_MEMORY_STICK:{
             int tamanio_ms_recibido;
+            t_operacion aviso= OP_NUEVO_STICK; 
             recv(cliente_fd, &tamanio_ms_recibido, sizeof(int), MSG_WAITALL);
             if (tamanio_ms_recibido <= 0) {
                 log_error(logger, "Error recibiendo tamaño de Memory Stick");
@@ -83,6 +83,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
                 return NULL;
             }
             agregar_hueco_libre(tamanio_ms_recibido, cliente_fd);
+            send (fd_ks_bsod,&aviso, sizeof(t_operacion), 0);
             log_info(logger, "## Memory Stick de %d bytes Conectada \n", tamanio_ms_recibido);
             break;
         }
