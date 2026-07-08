@@ -35,6 +35,13 @@ typedef struct {
     uint32_t tamanio;
 }t_stick; //estructura para manejo de sticks
 
+typedef struct {
+    int id_bloque;
+    int id_segmento;
+    int orden;
+    int proceso;
+}t_bloque; //estructura para manejo de bloques
+
 extern pthread_mutex_t mutex_lista_procesos;
 extern pthread_mutex_t mutex_lista_huecos;
 extern pthread_mutex_t mutex_lista_segmentos;
@@ -43,6 +50,7 @@ extern t_list* procesos_activos;
 extern t_list* huecos_libres;
 extern t_list* segmentos;
 extern t_list* sticks;
+extern t_list* bloques;
 extern int fd_SWAP;
 extern int tamanio_swap;
 extern int tamanio_bloque;

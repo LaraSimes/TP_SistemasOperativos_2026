@@ -102,6 +102,7 @@ void identificar_modulo(t_modulo id_recibida, t_log* logger,int cliente_fd){
                 break;
             }
             log_info(logger, "## SWAP Conectado\n");
+            agregar_swap(tamanio_swap, tamanio_bloque);
             break;
         }
         default:
@@ -182,7 +183,15 @@ void sacar_stick(int cliente_fd) {
     }
     pthread_mutex_unlock(&mutex_lista_sticks);
 }
-
+void agregar_swap(int tamanio_swap, int tamanio_bloque) {
+    int cantidad_bloques = tamanio_swap / tamanio_bloque;
+    for (int i = 0; i < cantidad_bloques; i++) {
+        t_bloque* nuevo_bloque = malloc(sizeof(t_bloque));
+        nuevo_bloque->id_bloque = i;
+        nuevo_bloque->proceso = -1; // -1 indica que el bloque está libre
+        list_add(bloques, nuevo_bloque);
+    }
+}
 void* comparar_bases_hueco(t_hueco* h1, t_hueco* h2) {
     return h1->base >= h2->base ? h1 : h2;
 }
