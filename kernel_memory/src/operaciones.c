@@ -705,3 +705,12 @@ uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio){
     }
     return i;
 }
+
+int necesarios_bloques(t_list* segmentos){
+    uint32_t tamanio=0;
+    for (int i=0; i<list_size(segmentos);i++){
+        t_segmento* seg = list_get(segmentos,i);
+        tamanio+=seg->tamanio;
+    }
+    return (tamanio+tamanio_bloque)/tamanio_bloque;
+}
