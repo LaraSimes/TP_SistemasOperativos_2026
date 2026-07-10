@@ -189,7 +189,7 @@ void agregar_swap(int tamanio_swap, int tamanio_bloque) {
         t_bloque* nuevo_bloque = malloc(sizeof(t_bloque));
         nuevo_bloque->id_bloque = i;
         nuevo_bloque->proceso = -1; // -1 indica que el bloque está libre
-        list_add(bloques, nuevo_bloque);
+        list_add(bloques_swap, nuevo_bloque);
     }
 }
 void* comparar_bases_hueco(t_hueco* h1, t_hueco* h2) {

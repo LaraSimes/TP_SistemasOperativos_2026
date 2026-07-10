@@ -161,8 +161,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         case OP_DESUSPEND:{
             int pid;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
-            t_proceso_control* p = buscar_proceso_por_pid(pid);
-            int resp = desuspender_proceso(p);
+            int resp = desuspender_proceso(pid);
             send(cliente_fd,&resp, sizeof(int),0);
             break;
         }
@@ -458,8 +457,8 @@ void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt){
 }
 
 int suspender_proceso(t_proceso_control* proceso){
-    t_operacion op = OP_SUSPEND;
-    send(fd_SWAP,&op,sizeof(op),0);
+    t_operacion op=OP_SUSPEND;
+    send(fd_SWAP,&op,sizeof(int),0);
     pthread_mutex_lock(&mutex_lista_segmentos);
     t_list* segmentos = proceso->contexto.segmentos;
     pthread_mutex_unlock(&mutex_lista_segmentos);
@@ -474,29 +473,58 @@ int suspender_proceso(t_proceso_control* proceso){
     return 0;
 }
 
-t_rsp_KM desuspender_proceso(t_proceso_control* proceso){
-    t_operacion op= OP_DESUSPEND;
-    t_rsp_KM ret= OK;
-    int cantidad_bloques;
-    send(fd_SWAP,&op,sizeof(op),0);
-    send(fd_SWAP,&pid,sizeof(int),0);
-    recv(fd_SWAP,&cantidad_bloques,sizeof(int),MSG_WAITALL);
-    for(int i=0;i<cantidad_bloques;i++){
-        int id;
-        uint32_t tamanio;
-        uint8_t* contenido;
-        recibir_bloque(&id,&tamanio,&contenido);
-        t_segmento* desus=crear_segmento(id,tamanio);
-        ret = agregar_segmento(pid,desus);
-        if (ret < 0) {
-            free(contenido);
-            free(desus);
-            return ret;
+t_rsp_KM desuspender_proceso(int pid){
+    t_list* bloques = bloques_proceso(pid);
+    t_list* id_segmentos=contar_segmentos(bloques);
+    for(int i=0;i<list_size(id_segmentos);i++){
+        uint32_t tamanio_buffer,offset=0;
+        int* id_ptr = list_get(id_segmentos,i);
+        int id=*id_ptr;
+        t_list* bloqs_segmento=bloq_x_segmento(id,bloques);
+        list_sort(bloqs_segmento,ordenar_bloques);
+        tamanio_buffer = tamanio_bloque*list_size(bloqs_segmento);
+        uint8_t* buffer=calloc(1,tamanio_buffer);
+        if (buffer == NULL) {
+            list_destroy(bloqs_segmento);
+            list_destroy(id_segmentos);
+            list_destroy(bloques);
+            return ERROR;
         }
-        escribir_dir(desus->base, tamanio, contenido,0);
-        free(contenido);
+        for(int n=0;n<list_size(bloqs_segmento);n++){
+            t_bloque* bloq = list_get(bloqs_segmento,n);
+            int dir_bloque = (bloq->id_bloque)*tamanio_bloque;
+            send(fd_SWAP,&dir_bloque,sizeof(int),0);
+            int res = recv(fd_SWAP,buffer+offset,tamanio_bloque,MSG_WAITALL);
+            if(res!=tamanio_bloque){
+                free(buffer);
+                list_destroy(bloqs_segmento);
+                list_destroy(id_segmentos);
+                list_destroy(bloques);
+                return ERROR;
+            }
+            offset+=tamanio_bloque;
+        }
+        t_segmento* nuevo = crear_segmento(id,tamanio_real(buffer,tamanio_buffer));
+        if(agregar_segmento(pid,nuevo)<0){
+            free(buffer);
+            list_destroy(id_segmentos);
+            list_destroy(bloqs_segmento);
+            list_destroy(bloques);
+            return ERROR;
+        }
+        if(escribir_dir(nuevo->base, nuevo->tamanio,buffer,0)<0){
+            free(buffer);
+            list_destroy(id_segmentos);
+            list_destroy(bloqs_segmento);
+            list_destroy(bloques);
+            return ERROR;
+        }
+        free(buffer);
+        list_destroy(bloqs_segmento);
     }
-    return ret;
+    list_destroy(id_segmentos);
+    list_destroy(bloques);
+    return OK;
 }
 
 bool menor_base(void* a, void* b) {
@@ -578,16 +606,16 @@ t_rsp_KM finalizar_proceso(int pid){
     return OK;
 }
 
-int cargar_bloques(t_segmento* seg, int pid){
-    int ret,orden = 0;
-    uint8_t* contenido = calloc(1,tamanio_bloque);
+int cargar_bloques(t_segmento* seg, int pid) {
+    int ret;
+    int orden = 0;
+    uint8_t* contenido = calloc(1, tamanio_bloque);
     if (contenido == NULL) {
         return -1;
     }
-    int restante = seg->tamanio - tamanio_bloque;
-    uint32_t a_leer = seg->tamanio;
+    uint32_t restante = seg->tamanio;
     uint32_t offset = 0;
-    while (restante>0){
+    while (restante > 0) {
         t_bloque* b = elegir_bloque();
         if (b == NULL) {
             free(contenido);
@@ -596,42 +624,29 @@ int cargar_bloques(t_segmento* seg, int pid){
         b->proceso = pid;
         b->id_segmento = seg->id_segmento;
         b->orden = orden;
-        leer_dir(seg->base+offset, tamanio_bloque, contenido, 0);
-        send(fd_SWAP,&b->id_bloque,sizeof(int),0);
-        send(fd_SWAP,contenido,tamanio_bloque,0);
-        recv(fd_SWAP,&ret,sizeof(int),MSG_WAITALL);
-        if (ret<0){
+        uint32_t a_leer;
+        if (restante < tamanio_bloque) {a_leer = restante;}
+        else {a_leer = tamanio_bloque;}
+        memset(contenido, 0, tamanio_bloque);
+        leer_dir(seg->base + offset, a_leer, contenido, 0);
+        send(fd_SWAP, &b->id_bloque, sizeof(int), 0);
+        send(fd_SWAP, contenido, tamanio_bloque, 0);
+        recv(fd_SWAP, &ret, sizeof(int), MSG_WAITALL);
+        if (ret < 0) {
             free(contenido);
             return ret;
         }
-        a_leer -= tamanio_bloque;
-        restante -= tamanio_bloque;
-        offset += tamanio_bloque;
+        restante -= a_leer;
+        offset += a_leer;
         orden++;
-    }
-    t_bloque* b = elegir_bloque();
-    if (b == NULL) {
-        free(contenido);
-        return -1;
-    }
-    b->proceso = pid;
-    b->id_segmento = seg->id_segmento;
-    b->orden = orden;
-    leer_dir(seg->base+offset, a_leer, contenido, 0);
-    send(fd_SWAP,&b->id_bloque,sizeof(int),0);
-    send(fd_SWAP,contenido,tamanio_bloque,0);
-    recv(fd_SWAP,&ret,sizeof(int),MSG_WAITALL);
-    if (ret<0){
-        free(contenido);
-        return ret;
     }
     free(contenido);
     return 0;
 }
 t_bloque* elegir_bloque(){
     t_bloque* elegido;
-    for (int i=0;i<list_size(bloques);i++){
-        t_bloque* b = list_get(bloques,i);
+    for (int i=0;i<list_size(bloques_swap);i++){
+        t_bloque* b = list_get(bloques_swap,i);
         if (b->proceso == -1){
             elegido = b;
             return elegido;
@@ -640,6 +655,53 @@ t_bloque* elegir_bloque(){
     return elegido;
 }
 
-int recibir_bloque(int* id, uint32_t* tamanio, uint8_t** contenido){
-    
+bool ordenar_bloques(void* a, void* b) {
+    t_bloque* bloq_a = (t_bloque*) a;
+    t_bloque* bloq_b = (t_bloque*) b;
+
+    return bloq_a->orden < bloq_b->orden;
+}
+
+t_list* bloques_proceso(int pid){
+    t_list* bloques = list_create();
+    for (int i = 0; i<list_size(bloques_swap);i++){
+        t_bloque* b = list_get(bloques_swap,i);
+        if(b->proceso == pid){list_add(bloques,b);}
+    }
+    if (list_is_empty(bloques)){return NULL;}
+    return bloques;
+}
+t_list* contar_segmentos(t_list* bloques){
+    bool agregar;
+    t_list* segmentos = list_create();
+    for (int i =0; i<list_size(bloques); i++){
+        agregar = true;
+        t_bloque* b=list_get(bloques, i);
+        for(int n= i+1; n<list_size(bloques);n++){
+            t_bloque* v = list_get(bloques,n);
+            if(v->id_segmento==b->id_segmento){
+                agregar=false;
+                break;
+            }
+        }
+        if(agregar){list_add(segmentos,b->id_segmento);}
+    }
+    return segmentos;
+}
+
+t_list* bloq_x_segmento(int id,t_list* total){
+    t_list* bloq_segmento = list_create();
+    for (int i=0;i<list_size(total); i++){
+        t_bloque* b=list_get(total,i);
+        if(b->id_segmento==id){list_add(bloq_segmento,b);}
+    }
+    return bloq_segmento;
+}
+
+uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio){
+    uint32_t i = tamanio;
+    while(i>0 && bytes[i-1]==0){
+        i--;
+    }
+    return i;
 }

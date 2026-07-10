@@ -20,9 +20,16 @@ char* leer_instruccion_de_archivo(char* path, uint32_t pc);
 t_contexto obtener_contexto(t_proceso_control* proceso);
 void enviar_segmentos(int cliente_fd, t_list* segmentos);
 void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt);
-void suspender_proceso(t_proceso_control* proceso);
+int suspender_proceso(t_proceso_control* proceso);
 t_rsp_KM desuspender_proceso(int pid);
 bool menor_base(void* a, void* b);
 t_rsp_KM compactar(void);
-
+t_rsp_KM finalizar_proceso(int pid);
+int cargar_bloques(t_segmento* seg, int pid);
+t_bloque* elegir_bloque();
+bool ordenar_bloques(void* a, void* b);
+t_list* bloques_proceso(int pid);
+t_list* contar_segmentos(t_list* bloques);
+t_list* bloq_x_segmento(int id,t_list* total);
+uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio);
 #endif

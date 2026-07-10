@@ -50,7 +50,7 @@ extern t_list* procesos_activos;
 extern t_list* huecos_libres;
 extern t_list* segmentos;
 extern t_list* sticks;
-extern t_list* bloques;
+extern t_list* bloques_swap;
 extern int fd_SWAP;
 extern int tamanio_swap;
 extern int tamanio_bloque;

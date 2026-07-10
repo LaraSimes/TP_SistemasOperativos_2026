@@ -6,7 +6,7 @@ pthread_mutex_t mutex_lista_sticks;
 t_log* logger;
 t_list* huecos_libres;
 t_list* segmentos;
-t_list* bloques;
+t_list* bloques_swap;
 int fd_SWAP;
 int tamanio_swap;
 int tamanio_bloque;
