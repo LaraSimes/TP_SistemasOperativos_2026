@@ -150,6 +150,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
             log_info(logger,"Me pidieron suspender proceso %d \n",pid);
             t_proceso_control* p = buscar_proceso_por_pid(pid);
+            log_info(logger,"Encontre el proceso %d \n",pid);
             int ret = suspender_proceso(p);
             send(cliente_fd,&ret, sizeof(int),0);
             break;
@@ -291,12 +292,15 @@ t_proceso_control* buscar_proceso_por_pid(int pid) {
     return resultado;
 }
 
-t_stick* donde_guardo(uint32_t base){
-    t_stick* resultado;
+t_stick* donde_guardo(uint32_t direccion){
+    uint32_t base, limite;
+    t_stick* resultado = NULL;
     pthread_mutex_lock(&mutex_lista_sticks);
     for (int i=0; i<list_size(sticks);i++){
         t_stick* pruebo = list_get (sticks, i);
-        if (base >= pruebo -> base && base<(pruebo->base + pruebo->tamanio)){
+        base=pruebo->base;
+        limite = base + (pruebo->tamanio);
+        if (direccion>= base && direccion<limite){
             resultado = pruebo;
         }
     }
@@ -334,6 +338,7 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
 t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos){
     t_stick* stick = donde_guardo(direccion);
     if(stick==NULL){
+        log_error(logger, "No encuentro stick\n");
         return ERROR;
     }
     t_operacion op = OP_READ_MEM;

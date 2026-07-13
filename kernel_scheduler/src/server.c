@@ -50,6 +50,11 @@ void enviar_trabajo_io(t_io_registrada* io, t_pcb* pcb) {
         send(fd_km, &tamanio, sizeof(int), 0);                                     
         int32_t ok_km;
         recv(fd_km, &ok_km, sizeof(int32_t), MSG_WAITALL);
+        if (ok_km < 0) {
+            pthread_mutex_unlock(&mutex_km);
+            log_error(logger, "Error leyendo memoria para STDOUT, PID %d", pcb->pid);
+            return; // o el manejo de error que corresponda (avisar a la IO, finalizar el proceso, etc.)
+        }
         char* buffer = calloc(tamanio + 1, 1);
         recv(fd_km, buffer, tamanio, MSG_WAITALL);          
         pthread_mutex_unlock(&mutex_km);

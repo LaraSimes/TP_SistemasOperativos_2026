@@ -169,6 +169,7 @@ void agregar_hueco_libre(int tamanio_ms, int stick_fd) {
     nuevo_stick -> tamanio = tamanio_ms;
     list_add(sticks, nuevo_stick);
     pthread_mutex_unlock(&mutex_lista_sticks);
+    log_info(logger,"Se agrego espacio en KM \n");
 };
 
 void sacar_stick(int cliente_fd) {
