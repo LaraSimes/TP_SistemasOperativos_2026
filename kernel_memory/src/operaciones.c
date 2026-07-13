@@ -296,6 +296,7 @@ t_stick* donde_guardo(uint32_t direccion){
     uint32_t base, limite;
     t_stick* resultado = NULL;
     pthread_mutex_lock(&mutex_lista_sticks);
+    log_error(logger, "Buscando %u entre %d sticks\n", direccion, list_size(sticks));
     for (int i=0; i<list_size(sticks);i++){
         t_stick* pruebo = list_get (sticks, i);
         base=pruebo->base;
@@ -338,7 +339,7 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
 t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos){
     t_stick* stick = donde_guardo(direccion);
     if(stick==NULL){
-        log_error(logger, "No encuentro stick\n");
+        log_error(logger, "No encuentro stick para direccion %u (tamanio %u)\n", direccion, tamanio);
         return ERROR;
     }
     t_operacion op = OP_READ_MEM;
