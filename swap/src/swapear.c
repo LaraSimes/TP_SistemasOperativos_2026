@@ -13,12 +13,12 @@ void manejar_operacion(t_operacion op){
                 ret --;
                 free(contenido);
                 send(socket_km,&ret,sizeof(int),0);
-                log_error("Error escribiendo en bloque %d \n",bloque);
+                log_error(logger, "Error escribiendo en bloque %d \n",bloque);
                 break;
             }
             send(socket_km,&ret,sizeof(int),0);
             free(contenido);
-            log_info("Bloque %d escrito \n",bloque);
+            log_info(logger, "Bloque %d escrito \n",bloque);
             break;
         }
 
