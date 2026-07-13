@@ -66,7 +66,10 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t* contenido = malloc(tamanio);
             recv(cliente_fd,contenido,tamanio,MSG_WAITALL);
-            t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, contenido, pid);
+            for (int i = 0; i < tamanio; i++) {
+                 log_info(logger, "byte[%d] = 0x%02x ('%c')", i, contenido[i], contenido[i]);
+            }
+            t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, contenido, 0);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             free(contenido);
             if(respuesta<0){
@@ -361,6 +364,9 @@ t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t 
     b_leidos += tam;
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
+    for (int i = 0; i < tamanio; i++) {
+        log_info(logger, "byte[%d] = 0x%02x ('%c')", i, leido[i], leido[i]);
+    }
     return leer_dir(siguiente_base,restante,leido,b_leidos);
 }
 

@@ -193,17 +193,25 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
 
     //STDOUT
     if (strcmp(nombre, "STDOUT") == 0) {
-        *tipo_io_out  = SYSCALL_IO_STDOUT;
-        *dir_logica_out = get_registro(ctx, arg1);
-        *param_io_out = (int)get_registro(ctx, arg2); // Check 3 define qué mandar
+        *tipo_io_out = SYSCALL_IO_STDOUT;
+        uint32_t dir_logica = get_registro(ctx, arg1);
+        int tam = (int)get_registro(ctx, arg2);
+        uint32_t dir_fisica;
+        if (traducir(ctx, dir_logica, tam, seg_max, &dir_fisica) != 0) return SEG_FAULT;
+        *dir_logica_out = dir_fisica;
+        *param_io_out = tam;
         ctx->pc++;
         return SYSCALL;
     }
     //STDIN
     if (strcmp(nombre, "STDIN") == 0) {
-        *tipo_io_out  = SYSCALL_IO_STDIN;
-        *dir_logica_out = get_registro(ctx, arg1);
-        *param_io_out = (int)get_registro(ctx, arg2);
+        *tipo_io_out = SYSCALL_IO_STDIN;
+        uint32_t dir_logica = get_registro(ctx, arg1);
+        int tam = (int)get_registro(ctx, arg2);
+        uint32_t dir_fisica;
+        if (traducir(ctx, dir_logica, tam, seg_max, &dir_fisica) != 0) return SEG_FAULT;
+        *dir_logica_out = dir_fisica;
+        *param_io_out = tam;
         ctx->pc++;
         return SYSCALL;
     }
