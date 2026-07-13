@@ -22,6 +22,9 @@ int main(int argc, char* argv[]) {
     }
     huecos_libres = list_create();
     segmentos = list_create();
+    bloques_swap = list_create();
+    sticks = list_create();
+    procesos_activos = list_create();
     t_config_valores config_memoria;
 
     config=iniciar_config(argv[1]);
@@ -49,6 +52,9 @@ int main(int argc, char* argv[]) {
 
     procesos_activos=list_create(); //funcion que pide pedazo de memoria al ssoo y se van a guardar los procesos
     pthread_mutex_init(&mutex_lista_procesos, NULL);
+    pthread_mutex_init(&mutex_lista_huecos, NULL);
+    pthread_mutex_init(&mutex_lista_segmentos, NULL);
+    pthread_mutex_init(&mutex_lista_sticks, NULL);
 
     while(true){ //logica de esperar clientes
         int cliente_fd=esperar_cliente(server_fd);

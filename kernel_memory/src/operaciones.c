@@ -457,8 +457,6 @@ int suspender_proceso(t_proceso_control* proceso){
     pthread_mutex_unlock(&mutex_lista_segmentos);
     for(int i=0;i<list_size(segmentos);i++){
         t_segmento* s = list_get(segmentos,i);
-        t_operacion op=OP_SUSPEND;
-        send(fd_SWAP,&op,sizeof(int),0);
         if (cargar_bloques(s,proceso->pid)<0){
             return -1;
         };
@@ -604,6 +602,7 @@ t_rsp_KM finalizar_proceso(int pid){
 }
 
 int cargar_bloques(t_segmento* seg, int pid) {
+    t_operacion op=OP_SUSPEND;
     int ret;
     int orden = 0;
     uint8_t* contenido = calloc(1, tamanio_bloque);
@@ -627,7 +626,8 @@ int cargar_bloques(t_segmento* seg, int pid) {
         else {a_leer = tamanio_bloque;}
         memset(contenido, 0, tamanio_bloque);
         leer_dir(seg->base + offset, a_leer, contenido, 0);
-        send(fd_SWAP, direccion, sizeof(int), 0);
+        send(fd_SWAP,&op,sizeof(int),0);
+        send(fd_SWAP, &direccion, sizeof(int), 0);
         send(fd_SWAP, contenido, tamanio_bloque, 0);
         recv(fd_SWAP, &ret, sizeof(int), MSG_WAITALL);
         if (ret < 0) {
