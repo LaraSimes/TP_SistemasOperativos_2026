@@ -26,10 +26,10 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
-            t_segmento* seg = crear_segmento(id_segmento, tamanio);
-            t_rsp_KM resultado = agregar_segmento(pid, seg);
-            send(cliente_fd,&resultado, sizeof(resultado),0);
+            log_info(logger, "Recibi info para crear un segmento\n");
+            t_rsp_KM resultado = agregar_segmento(pid, tamanio,id_segmento);
             if(resultado<0){break;}
+            send(cliente_fd,&resultado, sizeof(resultado),0);
             log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %u \n", pid,id_segmento,tamanio);
             break;
         }
@@ -140,6 +140,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
                 break;
             }
             actualizar_contexto(proceso,&contexto);
+            log_info(logger,"Guarde contexto de pid %d \n",pid);
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
             break;
@@ -223,17 +224,11 @@ uint32_t obtener_espacio_libre() {
     return total;
 }
 
-t_segmento* crear_segmento(int id_segmento, uint32_t tamanio) {
+t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
     t_segmento* nuevo_segmento = malloc(sizeof(t_segmento));
     nuevo_segmento->id_segmento = id_segmento;
-    nuevo_segmento->tamanio = tamanio;
-    return nuevo_segmento;
-}
-
-t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
-    uint32_t tamanio_seg = seg->tamanio;
-    uint32_t limite_seg = seg->tamanio + seg->base;
-    if (tamanio_seg> max_segmento){
+    nuevo_segmento->id_segmento = tamanio;
+    if (tamanio> max_segmento){
         return SEGMENTO_EXCEDIDO;
     }
     t_proceso_control* proceso = buscar_proceso_por_pid(pid);
@@ -242,30 +237,30 @@ t_rsp_KM agregar_segmento(int pid, t_segmento* seg){
     }
     pthread_mutex_lock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_segmentos);
-    t_list* posibles =filtrar_huecos_por_tamanio(huecos_libres,tamanio_seg);
+    t_list* posibles =filtrar_huecos_por_tamanio(huecos_libres,tamanio);
     if (list_is_empty(posibles)) {
-        free(seg);
+        free(nuevo_segmento);
         pthread_mutex_unlock(&mutex_lista_segmentos);
         pthread_mutex_unlock(&mutex_lista_huecos);
-        log_error(logger, "## PID: %d - No se encontró un hueco libre adecuado para el segmento %d de tamaño %d", proceso->pid, seg->id_segmento, tamanio_seg);
+        log_error(logger, "## PID: %d - No se encontró un hueco libre adecuado para el segmento %d de tamaño %d", pid, nuevo_segmento->id_segmento, tamanio);
         return FRAGMENTACION_EXT;
     }
     t_hueco* hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);
     list_destroy(posibles);
-    if(hueco_elegido-> tamanio == tamanio_seg){
+    if(hueco_elegido-> tamanio == tamanio){
         list_remove_element (huecos_libres, hueco_elegido);
         free (hueco_elegido);
     }
     else{
-        seg->base = hueco_elegido->base;
-        hueco_elegido->base = limite_seg;
-        hueco_elegido->tamanio = hueco_elegido->tamanio - tamanio_seg;
-        list_add(segmentos,seg);
+        nuevo_segmento->base = hueco_elegido->base;
+        hueco_elegido->base +=tamanio;
+        hueco_elegido->tamanio-=tamanio;
+        list_add(segmentos,nuevo_segmento);
     }
     pthread_mutex_unlock(&mutex_lista_segmentos);
     pthread_mutex_unlock(&mutex_lista_huecos);
     pthread_mutex_lock(&mutex_lista_procesos);
-    list_add(proceso->contexto.segmentos,seg);
+    list_add(proceso->contexto.segmentos,nuevo_segmento);
     pthread_mutex_unlock(&mutex_lista_procesos);
     return OK;
 }
@@ -507,14 +502,14 @@ t_rsp_KM desuspender_proceso(int pid){
             recv(fd_SWAP,buffer+offset,tamanio_bloque,MSG_WAITALL);
             offset+=tamanio_bloque;
         }
-        t_segmento* nuevo = crear_segmento(id,tamanio_real(buffer,tamanio_buffer));
-        if(agregar_segmento(pid,nuevo)<0){
+        if(agregar_segmento(pid,tamanio_real(buffer,tamanio_buffer),id)<0){
             free(buffer);
             list_destroy(id_segmentos);
             list_destroy(bloqs_segmento);
             list_destroy(bloques);
             return ERROR;
         }
+        t_segmento* nuevo=buscar_segmento(pid,id);
         if(escribir_dir(nuevo->base, nuevo->tamanio,buffer,0)<0){
             free(buffer);
             list_destroy(id_segmentos);
@@ -710,4 +705,13 @@ uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio){
         i--;
     }
     return i;
+}
+t_segmento* buscar_segmento(int pid, int id_seg){
+    t_proceso_control* p= buscar_proceso_por_pid(pid);
+    t_list* segmentos= p->contexto.segmentos;
+    for (int i=0;list_size(segmentos)>i;i++){
+        t_segmento* seg = list_get(segmentos,i);
+        if(seg->id_segmento==id_seg){return seg;}
+    }
+    return NULL;
 }

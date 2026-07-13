@@ -53,8 +53,6 @@ void guardar_contexto(int fd_km, int pid, t_contexto* ctx, t_log* logger) {
     send(fd_km, ctx, sizeof(t_contexto), 0);
 
     uint32_t ok;
-    recv(fd_km, &ok, sizeof(uint32_t), MSG_WAITALL);
-
-
+    if(recv(fd_km, &ok, sizeof(uint32_t), MSG_WAITALL)<=0){return NULL;}
     log_info(logger, "## PID: %d - Contexto guardado", pid);
 }

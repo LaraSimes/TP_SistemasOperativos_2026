@@ -2,6 +2,7 @@
 #define COMUN_H
 
 #include "utils/general.h"
+#include "utils/hello.h" 
 #include <stddef.h>  
 #include <pthread.h>
 

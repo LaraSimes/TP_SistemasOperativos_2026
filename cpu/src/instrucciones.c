@@ -107,11 +107,11 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         send(fd_km, &size,       sizeof(int),         0);
 
         int ok;
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if(recv(fd_km, &ok, sizeof(int), MSG_WAITALL)<=0){return SEG_FAULT;}
         if (ok != 0) return SEG_FAULT;
 
         uint32_t valor = 0;
-        recv(fd_km, &valor, size, MSG_WAITALL);
+        if(recv(fd_km, &valor, size, MSG_WAITALL)<=0){return SEG_FAULT;}
         set_registro(ctx, arg1, valor);
 
         log_info(logger, "PID: %d - Acción: LEER - Dirección Física: %u - Valor: %u", pid, dir_fisica, valor);
@@ -135,7 +135,7 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         send(fd_km, &valor,      size,                0);
 
         int ok;
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if(recv(fd_km, &ok, sizeof(int), MSG_WAITALL)<=0){return SEG_FAULT;}
         if (ok != 0) return SEG_FAULT;
 
         log_info(logger, "PID: %d - Acción: ESCRIBIR - Dirección Física: %u - Valor: %u", pid, dir_fisica, valor);
@@ -159,11 +159,11 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         send(fd_km, &size,           sizeof(int),         0);
 
         int ok;
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if(recv(fd_km, &ok, sizeof(int), MSG_WAITALL)<=0){return SEG_FAULT;}
         if (ok != 0) return SEG_FAULT;
 
         uint8_t* buffer = malloc(size);
-        recv(fd_km, buffer, size, MSG_WAITALL);
+        if (recv(fd_km, buffer, size, MSG_WAITALL)<=0){return SEG_FAULT;}
 
         // WRITE hacia dst
         op = OP_WRITE_MEM;
@@ -174,7 +174,7 @@ int ejecutar(char* instruccion, t_contexto* ctx, t_log* logger, int pid, int fd_
         send(fd_km, buffer,          size,                0);
         free(buffer);
 
-        recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+        if(recv(fd_km, &ok, sizeof(int), MSG_WAITALL)<=0){return SEG_FAULT;}
         if (ok != 0) return SEG_FAULT;
 
         ctx->pc++;
