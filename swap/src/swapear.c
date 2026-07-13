@@ -2,6 +2,7 @@
 void manejar_operacion(t_operacion op){
     switch(op){
         case OP_SUSPEND:{
+            log_info(logger,"Recibi pedido de suspensión\n");
             int ret = 0;
             uint32_t direccion, bloque;
             uint8_t* contenido = calloc(1, tamanio_bloque);

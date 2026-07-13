@@ -148,6 +148,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         case OP_SUSPEND:{
             int pid;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
+            log_info(logger,"Me pidieron suspender proceso %d \n",pid);
             t_proceso_control* p = buscar_proceso_por_pid(pid);
             int ret = suspender_proceso(p);
             send(cliente_fd,&ret, sizeof(int),0);
@@ -188,6 +189,7 @@ void crear_proceso(int pid, char* path) {
     // creo el proceso en la lista
     t_proceso_control* nuevo_proceso = calloc(1, sizeof(t_proceso_control)); 
     nuevo_proceso->pid = pid;
+    nuevo_proceso->contexto.segmentos=list_create();
     if (path[0] == '/') {
         nuevo_proceso->path_instrucciones = strdup(path);
     } else {
@@ -227,7 +229,7 @@ uint32_t obtener_espacio_libre() {
 t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
     t_segmento* nuevo_segmento = malloc(sizeof(t_segmento));
     nuevo_segmento->id_segmento = id_segmento;
-    nuevo_segmento->id_segmento = tamanio;
+    nuevo_segmento->tamanio = tamanio;
     if (tamanio> max_segmento){
         return SEGMENTO_EXCEDIDO;
     }
@@ -248,6 +250,8 @@ t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
     t_hueco* hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);
     list_destroy(posibles);
     if(hueco_elegido-> tamanio == tamanio){
+        nuevo_segmento->base = hueco_elegido->base;
+        list_add(segmentos,nuevo_segmento);
         list_remove_element (huecos_libres, hueco_elegido);
         free (hueco_elegido);
     }
@@ -464,6 +468,8 @@ int suspender_proceso(t_proceso_control* proceso){
             return -1;
         };
     }
+    if(list_size(segmentos)==0){log_info(logger,"No se mandan segmentos a SWAP porque no hay\n");}
+    log_info(logger,"Se suspendio proceso %d \n",proceso->pid);
     return 0;
 }
 
