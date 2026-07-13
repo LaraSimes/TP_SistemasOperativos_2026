@@ -59,6 +59,7 @@ extern t_log* logger;
 extern int fd_ks_bsod;
 extern char* ip_ks;
 extern char* puerto_ks;
+extern char* scripts_basepath;
 extern int delay_comp;
 extern int delay_inst;
 #endif

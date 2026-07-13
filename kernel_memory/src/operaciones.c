@@ -187,7 +187,15 @@ void crear_proceso(int pid, char* path) {
     // creo el proceso en la lista
     t_proceso_control* nuevo_proceso = calloc(1, sizeof(t_proceso_control)); 
     nuevo_proceso->pid = pid;
-    nuevo_proceso->path_instrucciones = strdup(path);
+    if (path[0] == '/') {
+        nuevo_proceso->path_instrucciones = strdup(path);
+    } else {
+        char* path_completo = string_new();
+        string_append(&path_completo, scripts_basepath);
+        string_append(&path_completo, "/");
+        string_append(&path_completo, path);
+        nuevo_proceso->path_instrucciones = path_completo;
+    }
     //guardar el proceso creado en una lista global ya que esta fuera del main.c
     //guarda punteros a las estructuras de t_proceso_control declarado en el main.h
     pthread_mutex_lock(&mutex_lista_procesos);

@@ -14,6 +14,7 @@ t_config* config;
 uint32_t max_segmento;
 char* ip_ks;
 char* puerto_ks;
+char* scripts_basepath;
 
 int main(int argc, char* argv[]) {
     if(argc <2){
@@ -33,6 +34,7 @@ int main(int argc, char* argv[]) {
 
     max_segmento = config_memoria.segment_max_size;
     ip_ks = config_memoria.ip_ks;
+    scripts_basepath = config_memoria.scripts_basepath;
     puerto_ks = config_memoria.puerto_ks;
     delay_inst = config_memoria.instruction_delay;
     delay_comp = config_memoria.compaction_delay;
