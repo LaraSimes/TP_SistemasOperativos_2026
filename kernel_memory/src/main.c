@@ -7,15 +7,11 @@ t_log* logger;
 t_list* huecos_libres;
 t_list* segmentos;
 t_list* bloques_swap;
-int fd_SWAP;
-int tamanio_swap;
-int tamanio_bloque;
 t_list* sticks;
+t_list* procesos_activos;
+int fd_SWAP; tamanio_swap; tamanio_bloque; pid_a_buscar; fd_ks_bsod; delay_comp; delay_inst;
 t_config* config;
-t_list* procesos_activos; //funcion donde todos los hilos lo puedan ver, el hilo va a poder guardar un proceso e hilo de cpu pueda buscar ese proceso. Lista general
-int pid_a_buscar;
 uint32_t max_segmento;
-int fd_ks_bsod;
 char* ip_ks;
 char* puerto_ks;
 
@@ -35,6 +31,8 @@ int main(int argc, char* argv[]) {
     max_segmento = config_memoria.segment_max_size;
     ip_ks = config_memoria.ip_ks;
     puerto_ks = config_memoria.puerto_ks;
+    delay_inst = config_memoria.instruction_delay;
+    delay_comp = config_memoria.compaction_delay;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 

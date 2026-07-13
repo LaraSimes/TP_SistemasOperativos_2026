@@ -9,7 +9,7 @@ int liberar(t_log *log, t_config *config, int conexion){
     close(conexion);
     return 0;
 }
-void cargar_informacion_configuracion(t_config*config, t_config_valores* valores){
+void cargar_informacion_configuracion(t_config*config, t_atributos* valores){
     valores->ip=config_get_string_value(config,"IP");
     valores->puerto=config_get_string_value(config,"PUERTO");
     valores->log_level=config_get_string_value(config,"LOG_LEVEL");
@@ -18,7 +18,7 @@ void cargar_informacion_configuracion(t_config*config, t_config_valores* valores
     valores->block_size=config_get_int_value(config,"BLOCK_SIZE");
 }
 
-int handshakear(int km_fd){
+int handshakear_swap(int km_fd){
     t_modulo id=MOD_SWAP;
     int recibido;
     int a = send(km_fd,&id,sizeof(int),0);

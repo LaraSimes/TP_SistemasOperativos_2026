@@ -80,18 +80,13 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             t_rsp_KM resp;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
             recv(cliente_fd,&pc,sizeof(int),MSG_WAITALL);
-            log_info(logger, "KM recibio pedido de instruccion. PID: %d - PC: %d", pid, pc);
             t_proceso_control* proceso = buscar_proceso_por_pid(pid);
-            log_info(logger, "Despues de buscar_proceso_por_pid. proceso ptr: %p", (void*) proceso);
             if (proceso==NULL) {
                 log_error(logger, "No se encontro proceso PID: %d", pid);
                 resp = PID_NOT_FOUND;
                 send(cliente_fd,&resp, sizeof(resp),0);
                 break;
             }
-            log_info(logger, "Proceso encontrado. ptr: %p", (void*) proceso);
-            log_info(logger, "PID guardado en proceso: %d", proceso->pid);
-            log_info(logger, "Path ptr: %p", (void*) proceso->path_instrucciones);
             if (proceso->path_instrucciones == NULL) {
                 log_error(logger, "Path del proceso es NULL");
                 resp = ERROR;
@@ -100,15 +95,14 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             }
             char* instruccion = leer_instruccion_de_archivo(proceso->path_instrucciones,pc);
             if(instruccion==NULL){
-                log_error(logger,"leer_instruccion_de_archivo devolvio NULL. PID: %d - PC: %d - Path: %s",pid,pc,proceso->path_instrucciones);
+                log_error(logger,"Leer_instruccion_de_archivo devolvio NULL. PID: %d - PC: %d - Path: %s",pid,pc,proceso->path_instrucciones);
                 resp= ERROR;
                 send(cliente_fd,&resp, sizeof(resp),0);
                 break;
             }
-            log_info(logger, "Instruccion leida antes de OK: %s", instruccion);
+            usleep(1000*delay_inst);
             resp = OK;
             send(cliente_fd,&resp, sizeof(resp),0);
-            log_info(logger, "KM mando OK");
             int tamanio=strlen(instruccion);
             log_info(logger,"Estoy mandando tamanio %d \n",tamanio);
             send(cliente_fd,&tamanio, sizeof(int),0);
@@ -167,6 +161,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         }
         case OP_COMPACT_OK:{
             t_rsp_KM resultado = compactar();
+            usleep(1000*delay_comp);
             send(cliente_fd,&resultado, sizeof(resultado),0);
             break;
         }
@@ -457,15 +452,13 @@ void actualizar_contexto(t_proceso_control* proceso, t_contexto* cxt){
 }
 
 int suspender_proceso(t_proceso_control* proceso){
-    t_operacion op=OP_SUSPEND;
-    send(fd_SWAP,&op,sizeof(int),0);
     pthread_mutex_lock(&mutex_lista_segmentos);
     t_list* segmentos = proceso->contexto.segmentos;
     pthread_mutex_unlock(&mutex_lista_segmentos);
-    int cantidad_bloques = necesarios_bloques(segmentos);
-    send(fd_SWAP,&cantidad_bloques,sizeof(int),0);
     for(int i=0;i<list_size(segmentos);i++){
         t_segmento* s = list_get(segmentos,i);
+        t_operacion op=OP_SUSPEND;
+        send(fd_SWAP,&op,sizeof(int),0);
         if (cargar_bloques(s,proceso->pid)<0){
             return -1;
         };
@@ -474,6 +467,8 @@ int suspender_proceso(t_proceso_control* proceso){
 }
 
 t_rsp_KM desuspender_proceso(int pid){
+    t_operacion op = OP_DESUSPEND;
+    send(fd_SWAP,&op,sizeof(int),0);
     t_list* bloques = bloques_proceso(pid);
     t_list* id_segmentos=contar_segmentos(bloques);
     for(int i=0;i<list_size(id_segmentos);i++){
@@ -492,16 +487,18 @@ t_rsp_KM desuspender_proceso(int pid){
         }
         for(int n=0;n<list_size(bloqs_segmento);n++){
             t_bloque* bloq = list_get(bloqs_segmento,n);
-            int dir_bloque = (bloq->id_bloque)*tamanio_bloque;
-            send(fd_SWAP,&dir_bloque,sizeof(int),0);
-            int res = recv(fd_SWAP,buffer+offset,tamanio_bloque,MSG_WAITALL);
-            if(res!=tamanio_bloque){
+            uint32_t dir_bloque = (bloq->id_bloque)*tamanio_bloque;
+            send(fd_SWAP,&dir_bloque,sizeof(uint32_t),0);
+            int res;
+            recv(fd_SWAP,&res,sizeof(int),MSG_WAITALL);
+            if(res<0){
                 free(buffer);
                 list_destroy(bloqs_segmento);
                 list_destroy(id_segmentos);
                 list_destroy(bloques);
                 return ERROR;
             }
+            recv(fd_SWAP,buffer+offset,tamanio_bloque,MSG_WAITALL);
             offset+=tamanio_bloque;
         }
         t_segmento* nuevo = crear_segmento(id,tamanio_real(buffer,tamanio_buffer));
@@ -617,6 +614,7 @@ int cargar_bloques(t_segmento* seg, int pid) {
     uint32_t offset = 0;
     while (restante > 0) {
         t_bloque* b = elegir_bloque();
+        uint32_t direccion = (b->id_bloque) *tamanio_bloque;
         if (b == NULL) {
             free(contenido);
             return -1;
@@ -629,7 +627,7 @@ int cargar_bloques(t_segmento* seg, int pid) {
         else {a_leer = tamanio_bloque;}
         memset(contenido, 0, tamanio_bloque);
         leer_dir(seg->base + offset, a_leer, contenido, 0);
-        send(fd_SWAP, &b->id_bloque, sizeof(int), 0);
+        send(fd_SWAP, direccion, sizeof(int), 0);
         send(fd_SWAP, contenido, tamanio_bloque, 0);
         recv(fd_SWAP, &ret, sizeof(int), MSG_WAITALL);
         if (ret < 0) {
@@ -704,13 +702,4 @@ uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio){
         i--;
     }
     return i;
-}
-
-int necesarios_bloques(t_list* segmentos){
-    uint32_t tamanio=0;
-    for (int i=0; i<list_size(segmentos);i++){
-        t_segmento* seg = list_get(segmentos,i);
-        tamanio+=seg->tamanio;
-    }
-    return (tamanio+tamanio_bloque)/tamanio_bloque;
 }
