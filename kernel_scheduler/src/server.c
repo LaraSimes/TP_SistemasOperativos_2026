@@ -209,7 +209,12 @@ void* atender_cliente(void* arg) {
                         cpus_pendientes_compactacion--;
                         pthread_cond_signal(&cond_compactacion);
                         pthread_mutex_unlock(&mutex_compactacion);
-                    } else {
+                    } 
+                    else if (cpu->interrupcion_prioridad){
+                        cpu->interrupcion_prioridad = false;
+                        encolar_ready(pcb);   // no volver a loguear, ya se logueó el motivo real en encolar_ready
+                    }
+                    else {
                         log_info(logger, "## (%d) - Desalojado por fin de quantum", pcb->pid);
                         encolar_ready(pcb);
                     }

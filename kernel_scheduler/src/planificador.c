@@ -148,8 +148,9 @@ void encolar_ready(t_pcb* pcb) {
                 int interrupcion = 1;
                 send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
                 cpu->interrupcion_pendiente = true;
+                cpu->interrupcion_prioridad = true;   // <- agregar esto
                 log_info(logger, "## (%d) Prioridad: %d - Desalojado por cola más prioritaria por el proceso %d con prioridad %d",
-                         cpu->pcb_actual->pid, cpu->pcb_actual->prioridad, pcb->pid, pcb->prioridad);
+                        cpu->pcb_actual->pid, cpu->pcb_actual->prioridad, pcb->pid, pcb->prioridad);
             }
         }
         pthread_mutex_unlock(&mutex_cpus);
