@@ -486,9 +486,11 @@ int suspender_proceso(t_proceso_control* proceso){
 }
 
 t_rsp_KM desuspender_proceso(int pid){
-    t_operacion op = OP_DESUSPEND;
-    send(fd_SWAP,&op,sizeof(int),0);
     t_list* bloques = bloques_proceso(pid);
+    if (bloques == NULL) {
+        return OK;   // el proceso no tenía nada en SWAP, no hay nada que restaurar
+    }
+    t_operacion op = OP_DESUSPEND;
     t_list* id_segmentos=contar_segmentos(bloques);
     for(int i=0;i<list_size(id_segmentos);i++){
         uint32_t tamanio_buffer,offset=0;
@@ -507,6 +509,7 @@ t_rsp_KM desuspender_proceso(int pid){
         for(int n=0;n<list_size(bloqs_segmento);n++){
             t_bloque* bloq = list_get(bloqs_segmento,n);
             uint32_t dir_bloque = (bloq->id_bloque)*tamanio_bloque;
+            send(fd_SWAP,&op,sizeof(int),0);
             send(fd_SWAP,&dir_bloque,sizeof(uint32_t),0);
             int res;
             recv(fd_SWAP,&res,sizeof(int),MSG_WAITALL);
