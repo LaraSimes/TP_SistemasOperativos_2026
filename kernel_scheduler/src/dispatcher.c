@@ -27,18 +27,17 @@ void* dispatcher_thread(void* arg) {
     while (1) {
         sem_wait(&sem_dispatcher);
 
-        t_pcb* pcb = desencolar_ready();
-        if (pcb == NULL) continue;
-
         t_cpu* cpu = buscar_cpu_libre();
         if (cpu == NULL) {
-            // No hay CPU libre: reencolar sin despertar de nuevo al dispatcher (evita busy-loop)
-            reencolar_ready_sin_wake(pcb);
             continue;
         }
 
+        t_pcb* pcb = desencolar_ready();
+        if (pcb == NULL) continue;
+
         // Mando el PID a la CPU
         pthread_mutex_lock(&mutex_cpus);
+        cpu->libre = 0;
         cpu->quantum_id++;
         int mi_quantum_id = cpu->quantum_id;
         pthread_mutex_unlock(&mutex_cpus);
@@ -87,7 +86,7 @@ void* thread_quantum(void* arg) {
     usleep(rr_quantum * 1000);
 
     pthread_mutex_lock(&mutex_cpus);
-    if (cpu->quantum_id && cpu->pcb_actual != NULL && cpu->fd_interrupt >= 0) {
+    if (cpu->quantum_id == mi_quantum_id && cpu->interrupcion_pendiente && cpu->pcb_actual != NULL && cpu->fd_interrupt >= 0) {
         int interrupcion = 1;
         send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
         cpu->interrupcion_pendiente = false;

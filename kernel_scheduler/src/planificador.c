@@ -135,6 +135,7 @@ void encolar_ready(t_pcb* pcb) {
 
     pthread_mutex_lock(&mutex_ready);
     queue_push(colas_ready[index], pcb);
+    log_info(logger, "DEBUG: encolo PID %d, cola[%d] queda con %d elementos", pcb->pid, index, queue_size(colas_ready[index]));
     pthread_mutex_unlock(&mutex_ready);
 
     if (strcmp(planification_algorithm, "CMN") == 0 && queue_preemption) {
@@ -184,6 +185,7 @@ t_pcb* desencolar_ready() {
     for (int i = 0; i < num_colas; i++) {
         if (!queue_is_empty(colas_ready[i])) {
             pcb = queue_pop(colas_ready[i]);
+            log_info(logger, "DEBUG: desencolo PID %d de cola[%d]", pcb->pid, i);
             break;
         }
     }
