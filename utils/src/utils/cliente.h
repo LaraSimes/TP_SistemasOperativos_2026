@@ -15,3 +15,4 @@
 
 int crear_cliente(char *ip, char* puerto);
 bool handshakear (int socket_cliente, t_log *log, t_modulo id);
+bool handshake(int socket, t_log *log, t_modulo quien_soy, t_modulo a_quien_me_conecto);

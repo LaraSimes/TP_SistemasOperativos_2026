@@ -7,7 +7,8 @@ extern char** queues_algorithms;
 extern int    queues_count;
 
 typedef struct {
-    t_cpu* cpu;                                                                    
+    t_cpu* cpu; 
+    int quantum_id;                                                                   
 } t_args_quantum;
 
 
@@ -38,7 +39,8 @@ void* dispatcher_thread(void* arg) {
 
         // Mando el PID a la CPU
         pthread_mutex_lock(&mutex_cpus);
-        cpu->libre = 0;
+        cpu->quantum_id++;
+        int mi_quantum_id = cpu->quantum_id;
         pthread_mutex_unlock(&mutex_cpus);
 
         cambiar_estado(pcb, EXEC);
@@ -63,6 +65,7 @@ void* dispatcher_thread(void* arg) {
             cpu->interrupcion_pendiente = true;
             t_args_quantum* args = malloc(sizeof(t_args_quantum));
             args->cpu = cpu;
+            args->quantum_id = mi_quantum_id;
             pthread_t hilo;
             pthread_create(&hilo, NULL, thread_quantum, args);
             pthread_detach(hilo);
@@ -78,12 +81,13 @@ void wake_dispatcher() {
 void* thread_quantum(void* arg) {
     t_args_quantum* args = arg;
     t_cpu* cpu = args->cpu;
+    int mi_quantum_id = args->quantum_id;
     free(args);
 
     usleep(rr_quantum * 1000);
 
     pthread_mutex_lock(&mutex_cpus);
-    if (cpu->interrupcion_pendiente && cpu->pcb_actual != NULL && cpu->fd_interrupt >= 0) {
+    if (cpu->quantum_id && cpu->pcb_actual != NULL && cpu->fd_interrupt >= 0) {
         int interrupcion = 1;
         send(cpu->fd_interrupt, &interrupcion, sizeof(int), 0);
         cpu->interrupcion_pendiente = false;

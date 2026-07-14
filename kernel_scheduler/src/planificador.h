@@ -47,6 +47,7 @@ typedef struct {
     t_pcb* pcb_actual;
     bool interrupcion_pendiente;
     bool interrupcion_compactacion;
+    int quantum_id; //para respetar quantum 
 } t_cpu;
 
 // MUTEX
