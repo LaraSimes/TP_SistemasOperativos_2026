@@ -348,17 +348,21 @@ t_io_registrada* buscar_io_por_fd(int fd){
 
 t_io_registrada* buscar_io_por_tipo(t_tipo_io tipo) {
     pthread_mutex_lock(&mutex_ios);
-    t_io_registrada* encontrada = NULL;
+    t_io_registrada* libre = NULL;
+    t_io_registrada* primera_del_tipo = NULL;
     for (int i = 0; i < list_size(lista_ios); i++) {
         t_io_registrada* io = list_get(lista_ios, i);
         if (io->tipo == tipo) {
-            encontrada = io;
-            break;
+            if (primera_del_tipo == NULL) primera_del_tipo = io;
+            if (io->libre) {
+                libre = io;
+                break;
+            }
         }
     }
     pthread_mutex_unlock(&mutex_ios);
-    return encontrada;
-  }
+    return (libre != NULL) ? libre : primera_del_tipo;
+}
 
 t_mutex* buscar_mutex(char* nombre) {                                              
     pthread_mutex_lock(&mutex_mutex);

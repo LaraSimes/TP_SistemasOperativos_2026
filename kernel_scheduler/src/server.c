@@ -316,6 +316,9 @@ void* atender_cliente(void* arg) {
                                         pthread_mutex_unlock(&mutex_mutex);
                                     }
                                 }
+                                if (pcb->prioridad != pcb->prioridad_original) {
+                                    log_info(logger, "## %d Cambio de prioridad: %d - %d", pcb->pid, pcb->prioridad, pcb->prioridad_original);
+                                }
                                 pcb->prioridad = pcb->prioridad_original;
                                 encolar_ready(pcb);
                                 break;
