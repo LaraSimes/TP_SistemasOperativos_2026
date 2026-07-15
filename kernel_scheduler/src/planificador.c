@@ -14,6 +14,9 @@ typedef struct {
 
 static void* hilo_suspension(void* arg);
 static void encolar_block_sin_timer(t_pcb* pcb);
+static bool peek_en_block(int pid, int numero_bloqueo);
+static int pedir_suspension_km(int pid);
+static void deshacer_suspension_km(int pid);
 extern int suspension_timeout;
 extern int fd_km;
 extern pthread_mutex_t mutex_km;
@@ -210,6 +213,47 @@ void encolar_block(t_pcb* pcb) {
     pthread_detach(th);
 }
 
+static bool peek_en_block(int pid, int numero_bloqueo) {
+    pthread_mutex_lock(&mutex_block);
+    bool encontrado = false;
+    for (int i = 0; i < list_size(cola_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_block->elements, i);
+        if (pcb->pid == pid && pcb->numero_bloqueo == numero_bloqueo) {
+            encontrado = true;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_block);
+    return encontrado;
+}
+
+static int pedir_suspension_km(int pid) {
+    pthread_mutex_lock(&mutex_km);
+    t_operacion op = OP_SUSPEND;
+    send(fd_km, &op, sizeof(t_operacion), 0);
+    send(fd_km, &pid, sizeof(int), 0);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_km);
+    return ok;
+}
+
+static void deshacer_suspension_km(int pid) {
+    pthread_mutex_lock(&mutex_km);
+    t_operacion op = OP_DESUSPEND;
+    send(fd_km, &op, sizeof(t_operacion), 0);
+    send(fd_km, &pid, sizeof(int), 0);
+    int ok;
+    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
+    pthread_mutex_unlock(&mutex_km);
+
+    if (ok < 0) {
+        log_error(logger, "## (%d) No se pudo revertir una suspensión perdida por carrera con IO - memoria inconsistente", pid);
+    } else {
+        log_info(logger, "## (%d) Suspensión revertida: la IO terminó antes de que confirmara Kernel Memory", pid);
+    }
+}
+
 static void* hilo_suspension(void* arg) {
     t_args_suspension* args = arg;
     int pid = args->pid;
@@ -218,16 +262,54 @@ static void* hilo_suspension(void* arg) {
 
     usleep((long)suspension_timeout * 1000);
 
-    // Buscar el proceso en BLOCK (si ya salió, o si se volvió a bloquear después
-    // de este timer, no hacemos nada: este timer quedó obsoleto)
-    t_pcb* pcb = buscar_en_block(pid);
-    if (pcb == NULL) return NULL;
-    if (pcb->numero_bloqueo != numero_bloqueo) {
-        encolar_block_sin_timer(pcb);
+    // Fase 1: chequeo rápido y no destructivo. Si el timer quedó obsoleto
+    // (el proceso ya salió de BLOCK, o se volvió a bloquear después),
+    // no hace falta ni tocar Kernel Memory.
+    if (!peek_en_block(pid, numero_bloqueo)) {
         return NULL;
     }
 
-    suspender_proceso(pcb);
+    // Fase 2: round-trip lento a Kernel Memory. El pcb SIGUE en cola_block
+    // durante toda esta espera, así que si la IO de este proceso termina
+    // en el medio, quien procese esa notificación lo va a encontrar y
+    // tratar como una finalización de IO normal.
+    int ok = pedir_suspension_km(pid);
+
+    // Fase 3: confirmación atómica. Recién ACÁ sacamos el pcb de cola_block.
+    t_pcb* pcb = buscar_en_block(pid);
+
+    if (pcb == NULL) {
+        // La IO ganó la carrera: ya lo sacaron de cola_block y lo
+        // procesaron como finalización de IO normal. Si además le pedimos
+        // a KM que lo suspenda, hay que deshacerlo.
+        if (ok >= 0) {
+            deshacer_suspension_km(pid);
+        }
+        return NULL;
+    }
+
+    if (pcb->numero_bloqueo != numero_bloqueo) {
+        // Se volvió a bloquear con otro bloqueo mientras esperábamos a KM.
+        // Este timer quedó obsoleto para el bloqueo actual; lo reponemos
+        // sin tocar su propio timer (ya armado por ese nuevo bloqueo).
+        encolar_block_sin_timer(pcb);
+        if (ok >= 0) {
+            deshacer_suspension_km(pid);
+        }
+        return NULL;
+    }
+
+    if (ok < 0) {
+        log_error(logger, "## (%d) Falló la suspensión en Kernel Memory, no se libera memoria", pid);
+    }
+
+    cambiar_estado(pcb, SUSP_BLOCK);
+    pcb->tiempo_suspension = time(NULL);
+    log_info(logger, "## (%d) Se suspende el proceso - Estado: SUSP_BLOCK", pid);
+    pthread_mutex_lock(&mutex_susp);
+    queue_push(cola_susp_block, pcb);
+    pthread_mutex_unlock(&mutex_susp);
+
     return NULL;
 }
 
@@ -239,29 +321,6 @@ static void encolar_block_sin_timer(t_pcb* pcb) {
     queue_push(cola_block, pcb);
     pthread_mutex_unlock(&mutex_block);
 }
-
-void suspender_proceso(t_pcb* pcb) {
-    // Notificar a KM que lo mande a SWAP
-    pthread_mutex_lock(&mutex_km);
-    t_operacion op = OP_SUSPEND;
-    send(fd_km, &op, sizeof(t_operacion), 0);
-    send(fd_km, &pcb->pid, sizeof(int), 0);
-    int ok;
-    recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
-    pthread_mutex_unlock(&mutex_km);
-
-    if(ok < 0) {
-        log_error(logger, "## (%d) Falló la suspensión en Kernel Memory, no se libera memoria", pcb->pid);
-    }
-
-    cambiar_estado(pcb, SUSP_BLOCK);
-    pcb->tiempo_suspension = time(NULL);
-    log_info(logger, "## (%d) Se suspende el proceso - Estado: SUSP_BLOCK", pcb->pid);
-    pthread_mutex_lock(&mutex_susp);
-    queue_push(cola_susp_block, pcb);
-    pthread_mutex_unlock(&mutex_susp);
-  }
-
 
 
 t_cpu* buscar_cpu_libre() {

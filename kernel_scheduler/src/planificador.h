@@ -119,7 +119,6 @@ t_mutex* buscar_mutex(char* nombre);
 t_mutex* crear_mutex(char* nombre);
 t_cpu* buscar_cpu_por_id(int id);
 void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad);
-void suspender_proceso(t_pcb* pcb);
 void encolar_susp_ready(t_pcb* pcb);
 void intentar_desuspender();
 t_pcb* buscar_en_susp_block(int pid);
