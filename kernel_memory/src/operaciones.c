@@ -252,8 +252,8 @@ t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
         return FRAGMENTACION_EXT;
     }
     t_hueco* hueco_elegido;
-    if(strcmp(strategy,"WORST FIT")==0){hueco_elegido = list_get_minimum(posibles, hueco_mas_grande);}
-    if(strcmp(strategy, "BEST FIT") == 0){hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);}
+    if(strcmp(strategy,"WORST")==0){hueco_elegido = list_get_minimum(posibles, hueco_mas_grande);}
+    if(strcmp(strategy, "BEST") == 0){hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);}
     list_destroy(posibles);
     if(hueco_elegido-> tamanio == tamanio){
         nuevo_segmento->base = hueco_elegido->base;
