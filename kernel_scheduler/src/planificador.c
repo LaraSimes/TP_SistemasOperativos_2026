@@ -443,6 +443,21 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad) {
         }
     }
     pthread_mutex_unlock(&mutex_block);
+    // Caso 4: owner está en SUSP_BLOCK (tiene el mutex, fue suspendido mientras esperaba IO)
+    pthread_mutex_lock(&mutex_susp);
+    for (int i = 0; i < list_size(cola_susp_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_susp_block->elements, i);
+        if (pcb->pid == owner_pid) {
+            if (nueva_prioridad < pcb->prioridad) {
+                int prioridad_anterior = pcb->prioridad;
+                pcb->prioridad = nueva_prioridad;
+                log_info(logger, "## %d Cambio de prioridad: %d - %d", owner_pid, prioridad_anterior, nueva_prioridad);
+            }
+            pthread_mutex_unlock(&mutex_susp);
+            return;
+        }
+    }
+    pthread_mutex_unlock(&mutex_susp);
 }
 
 
@@ -500,7 +515,7 @@ void intentar_desuspender() {
     recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
     pthread_mutex_unlock(&mutex_km);
 
-    if (ok) {
+    if(ok == 0) {
         log_info(logger, "## (%d) Se des-suspende el proceso", candidato->pid);
         encolar_ready(candidato);
     } else {

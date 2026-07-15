@@ -280,19 +280,18 @@ void* hueco_mas_chico(void* a, void* b) {
     return hueco_a->tamanio <= hueco_b->tamanio ? hueco_a : hueco_b;
 }
 
-t_proceso_control* buscar_proceso_por_pid(int pid) {
-    t_proceso_control* resultado = NULL;
+t_proceso_control* buscar_proceso_por_pid(int pid){
+    if(list_is_empty(procesos_activos)){return NULL;}
     pthread_mutex_lock(&mutex_lista_procesos);
-    for (int i = 0; i < list_size(procesos_activos); i++) {
-        t_proceso_control* proceso = list_get(procesos_activos, i);
-
-        if (proceso->pid == pid) {
-            resultado = proceso;
-            break;
-        }
+    for(int i=0;i<list_size(procesos_activos);i++){
+        t_proceso_control* p = list_get(procesos_activos,i);
+        if(p->pid==pid){
+            pthread_mutex_unlock(&mutex_lista_procesos);
+            return p;
+        };
     }
     pthread_mutex_unlock(&mutex_lista_procesos);
-    return resultado;
+    return NULL;
 }
 
 t_stick* donde_guardo(uint32_t direccion){

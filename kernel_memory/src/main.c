@@ -9,7 +9,7 @@ t_list* segmentos;
 t_list* bloques_swap;
 t_list* sticks;
 t_list* procesos_activos;
-int fd_SWAP; tamanio_swap; tamanio_bloque; pid_a_buscar; fd_ks_bsod; delay_comp; delay_inst;
+int fd_SWAP; tamanio_swap; tamanio_bloque; fd_ks_bsod; delay_comp; delay_inst;
 t_config* config;
 uint32_t max_segmento;
 char* ip_ks;
@@ -125,8 +125,4 @@ void* manejar_cliente(void* arg)  {
     };
     close(cliente_fd);
     return NULL;
-}
-bool _es_el_proceso(void* elemento){ // criterio de busqueda, devuelve true o false
-    t_proceso_control* proceso = (t_proceso_control*) elemento;
-    return proceso->pid == pid_a_buscar;
 }
