@@ -32,4 +32,5 @@ t_list* contar_segmentos(t_list* bloques);
 t_list* bloq_x_segmento(int id,t_list* total);
 uint32_t tamanio_real(uint8_t* bytes,uint32_t tamanio);
 t_segmento* buscar_segmento(int pid, int id_seg);
+void* hueco_mas_grande(void* a, void* b);
 #endif

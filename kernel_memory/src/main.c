@@ -15,6 +15,7 @@ uint32_t max_segmento;
 char* ip_ks;
 char* puerto_ks;
 char* scripts_basepath;
+char* strategy;
 
 int main(int argc, char* argv[]) {
     if(argc <2){
@@ -38,6 +39,7 @@ int main(int argc, char* argv[]) {
     puerto_ks = config_memoria.puerto_ks;
     delay_inst = config_memoria.instruction_delay;
     delay_comp = config_memoria.compaction_delay;
+    strategy = config_memoria.allocation_strategy;
 
     t_log_level nivel_log = log_level_from_string(config_memoria.log_level);
 

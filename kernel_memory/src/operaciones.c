@@ -251,7 +251,9 @@ t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
         log_error(logger, "## PID: %d - No se encontró un hueco libre adecuado para el segmento %d de tamaño %d", pid, nuevo_segmento->id_segmento, tamanio);
         return FRAGMENTACION_EXT;
     }
-    t_hueco* hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);
+    t_hueco* hueco_elegido;
+    if(strcmp(strategy,"WORST FIT")==0){hueco_elegido = list_get_minimum(posibles, hueco_mas_grande);}
+    if(strcmp(strategy, "BEST FIT") == 0){hueco_elegido = list_get_minimum(posibles, hueco_mas_chico);}
     list_destroy(posibles);
     if(hueco_elegido-> tamanio == tamanio){
         nuevo_segmento->base = hueco_elegido->base;
@@ -278,6 +280,13 @@ void* hueco_mas_chico(void* a, void* b) {
     t_hueco* hueco_b = (t_hueco*) b;
 
     return hueco_a->tamanio <= hueco_b->tamanio ? hueco_a : hueco_b;
+}
+
+void* hueco_mas_grande(void* a, void* b) {
+    t_hueco* hueco_a = (t_hueco*) a;
+    t_hueco* hueco_b = (t_hueco*) b;
+
+    return hueco_a->tamanio >= hueco_b->tamanio ? hueco_a : hueco_b;
 }
 
 t_proceso_control* buscar_proceso_por_pid(int pid){

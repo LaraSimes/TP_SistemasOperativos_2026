@@ -64,4 +64,5 @@ extern char* puerto_ks;
 extern char* scripts_basepath;
 extern int delay_comp;
 extern int delay_inst;
+extern char* strategy;
 #endif
