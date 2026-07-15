@@ -111,6 +111,10 @@ void* manejar_cliente(void* arg)  {
     send(cliente_fd, &recibido, sizeof(int), 0);
     identificar_modulo(id_recibida, logger,cliente_fd);
 
+    if (id_recibida == MOD_SWAP) {
+        return NULL;
+    }
+
     while (true) { // el hilo se queda activo hasta que el cliente se desconecta
         int operacion_rec = recv(cliente_fd, &cod_op, sizeof(int), MSG_WAITALL);
         if (operacion_rec <= 0) {
@@ -125,6 +129,4 @@ void* manejar_cliente(void* arg)  {
         }
         manejar_operacion(cliente_fd, cod_op);
     };
-    close(cliente_fd);
-    return NULL;
 }
