@@ -250,6 +250,10 @@ void suspender_proceso(t_pcb* pcb) {
     recv(fd_km, &ok, sizeof(int), MSG_WAITALL);
     pthread_mutex_unlock(&mutex_km);
 
+    if(ok < 0) {
+        log_error(logger, "## (%d) Falló la suspensión en Kernel Memory, no se libera memoria", pcb->pid);
+    }
+
     cambiar_estado(pcb, SUSP_BLOCK);
     pcb->tiempo_suspension = time(NULL);
     log_info(logger, "## (%d) Se suspende el proceso - Estado: SUSP_BLOCK", pcb->pid);

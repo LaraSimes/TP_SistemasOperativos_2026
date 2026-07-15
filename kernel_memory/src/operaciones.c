@@ -29,7 +29,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             log_info(logger, "Recibi info para crear un segmento\n");
             t_rsp_KM resultado = agregar_segmento(pid, tamanio,id_segmento);
             send(cliente_fd,&resultado, sizeof(resultado),0);
-            if (resultado) {
+            if (resultado == OK) {
                 log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %u \n", pid,id_segmento,tamanio);
             }
             break;
@@ -343,8 +343,16 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
     }
     pthread_mutex_lock(&mutex_lista_segmentos);
     list_remove_element(segmentos,eliminado);
-    free(eliminado);
     pthread_mutex_unlock(&mutex_lista_segmentos);
+
+    pthread_mutex_lock(&mutex_lista_huecos);
+    t_hueco* nuevo_hueco = malloc(sizeof(t_hueco));
+    nuevo_hueco->base = eliminado->base;
+    nuevo_hueco->tamanio = eliminado->tamanio;
+    list_add(huecos_libres, nuevo_hueco);
+    pthread_mutex_unlock(&mutex_lista_huecos);
+
+    free(eliminado);
     return OK;
 }
 
@@ -726,7 +734,7 @@ t_list* contar_segmentos(t_list* bloques){
         if(agregar){
             int* id_ptr = malloc(sizeof(int));
             *id_ptr = b->id_segmento; 
-            list_add(segmentos,b->id_segmento);
+            list_add(segmentos, id_ptr);
         }
     }
     return segmentos;
