@@ -487,13 +487,16 @@ int suspender_proceso(t_proceso_control* proceso){
     pthread_mutex_lock(&mutex_lista_segmentos);
     t_list* segmentos = proceso->contexto.segmentos;
     pthread_mutex_unlock(&mutex_lista_segmentos);
-    for(int i=0;i<list_size(segmentos);i++){
+
+    int cantidad = list_size(segmentos);
+    for(int i= cantidad-1; i >= 0; i--){
         t_segmento* s = list_get(segmentos,i);
         if (cargar_bloques(s,proceso->pid)<0){
             return -1;
-        };
+        }
+        eliminar_segmento(proceso->pid, s->id_segmento);
     }
-    if(list_size(segmentos)==0){log_info(logger,"No se mandan segmentos a SWAP porque no hay\n");}
+    if(cantidad==0){log_info(logger,"No se mandan segmentos a SWAP porque no hay\n");}
     log_info(logger,"Se suspendio proceso %d \n",proceso->pid);
     return 0;
 }
