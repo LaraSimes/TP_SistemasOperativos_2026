@@ -187,8 +187,7 @@ void* atender_cliente(void* arg) {
                 case FIN_PROCESO:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de EXIT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
-                    // TEMP: KM todavía no implementa OP_FIN_PROCESO, colgaría mutex_km esperando ack. Descomentar cuando KM lo tenga.
-                    // notificar_fin_proceso_km(pcb->pid);
+                    notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
                     break;

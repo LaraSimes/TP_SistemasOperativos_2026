@@ -28,9 +28,10 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
             log_info(logger, "Recibi info para crear un segmento\n");
             t_rsp_KM resultado = agregar_segmento(pid, tamanio,id_segmento);
-            if(resultado<0){break;}
             send(cliente_fd,&resultado, sizeof(resultado),0);
-            log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %u \n", pid,id_segmento,tamanio);
+            if (resultado) {
+                log_info(logger, "## PID: %d - Segmento Creado %d - Tamaño: %u \n", pid,id_segmento,tamanio);
+            }
             break;
         }
         case OP_MEM_FREE:{
@@ -392,12 +393,16 @@ t_rsp_KM escribir_dir(uint32_t direccion, uint32_t tamanio, uint8_t* escrito,uin
     if (direccion+tamanio <= limite_stick){
         send(stick->fd_stick,&tamanio,sizeof(uint32_t),0);
         send(stick->fd_stick,escrito+b_escritos,tamanio,0);
+        uint32_t ok;
+        recv(stick->fd_stick, &ok, sizeof(uint32_t), MSG_WAITALL);
         pthread_mutex_unlock(&mutex_lista_sticks);
         return OK;
     }
     uint32_t tam = limite_stick - direccion;
     send(stick->fd_stick,&tam,sizeof(tam),0);
     send(stick->fd_stick,escrito+b_escritos,tam,0);
+    uint32_t ok;
+    recv(stick->fd_stick, &ok, sizeof(uint32_t), MSG_WAITALL);
     pthread_mutex_unlock(&mutex_lista_sticks);
     b_escritos += tam;
     uint32_t siguiente_base = direccion + tam;
@@ -504,6 +509,7 @@ t_rsp_KM desuspender_proceso(int pid){
         uint32_t tamanio_buffer,offset=0;
         int* id_ptr = list_get(id_segmentos,i);
         int id=*id_ptr;
+        free(id_ptr);
         t_list* bloqs_segmento=bloq_x_segmento(id,bloques);
         list_sort(bloqs_segmento,ordenar_bloques);
         tamanio_buffer = tamanio_bloque*list_size(bloqs_segmento);
@@ -714,7 +720,11 @@ t_list* contar_segmentos(t_list* bloques){
                 break;
             }
         }
-        if(agregar){list_add(segmentos,b->id_segmento);}
+        if(agregar){
+            int* id_ptr = malloc(sizeof(int));
+            *id_ptr = b->id_segmento; 
+            list_add(segmentos,b->id_segmento);
+        }
     }
     return segmentos;
 }
