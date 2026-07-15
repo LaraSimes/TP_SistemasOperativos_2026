@@ -556,13 +556,16 @@ t_rsp_KM desuspender_proceso(int pid){
             return ERROR;
         }
         t_segmento* nuevo=buscar_segmento(pid,id);
-        if(escribir_dir(nuevo->base, nuevo->tamanio,buffer,0)<0){
+        if (nuevo->tamanio > 0){
+            if(escribir_dir(nuevo->base, nuevo->tamanio,buffer,0)<0){
             free(buffer);
             list_destroy(id_segmentos);
             list_destroy(bloqs_segmento);
             list_destroy(bloques);
             return ERROR;
+            }
         }
+        
         free(buffer);
         list_destroy(bloqs_segmento);
     }
