@@ -111,7 +111,7 @@ void* manejar_cliente(void* arg)  {
     send(cliente_fd, &recibido, sizeof(int), 0);
     identificar_modulo(id_recibida, logger,cliente_fd);
 
-    if (id_recibida == MOD_SWAP) {
+    if (id_recibida == MOD_SWAP || id_recibida == MOD_MEMORY_STICK) {
         return NULL;
     }
 

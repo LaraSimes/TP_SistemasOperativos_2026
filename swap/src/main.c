@@ -18,6 +18,21 @@ int main(int argc, char* argv[]) {
     tamanio_total = valores.swap_size;
     tamanio_bloque=valores.block_size;
     path_SWAP = valores.swap_path;
+
+    FILE* archivo_swap = fopen(path_SWAP, "r+b");
+    if (archivo_swap == NULL) {
+        archivo_swap = fopen(path_SWAP, "w+b");
+        if (archivo_swap == NULL) {
+            log_error(logger, "No se pudo crear el archivo de SWAP en %s", path_SWAP);
+            liberar(logger, config, socket_km);
+            return -1;
+    }
+        uint8_t* ceros = calloc(1, tamanio_total);
+        fwrite(ceros, 1, tamanio_total, archivo_swap);
+        free(ceros);
+    }
+    fclose(archivo_swap);
+
     socket_km= crear_cliente(valores.ip, valores.puerto);
     if (socket_km == -1) {
         log_error(logger, "No se pudo conectar a Kernel Memory");
