@@ -17,7 +17,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         case OP_GET_FREE_SPACE:{
             uint32_t espacio = obtener_espacio_libre();
             send(cliente_fd, &espacio, sizeof(uint32_t), 0);
-            log_info(logger, "## Espacio libre solicitado por Kernel: %u bytes \n", espacio);
             break;
         }
         case OP_MEM_ALLOC:{
@@ -26,7 +25,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv (cliente_fd, &pid, sizeof(int), MSG_WAITALL);
             recv(cliente_fd, &tamanio, sizeof(uint32_t), MSG_WAITALL);
             recv(cliente_fd, &id_segmento, sizeof(int), MSG_WAITALL);
-            log_info(logger, "Recibi info para crear un segmento\n");
             t_rsp_KM resultado = agregar_segmento(pid, tamanio,id_segmento);
             send(cliente_fd,&resultado, sizeof(resultado),0);
             if (resultado == OK) {
@@ -67,9 +65,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             recv(cliente_fd, &tamanio, sizeof(int), MSG_WAITALL);
             uint8_t* contenido = malloc(tamanio);
             recv(cliente_fd,contenido,tamanio,MSG_WAITALL);
-            for (int i = 0; i < tamanio; i++) {
-                 log_info(logger, "byte[%d] = 0x%02x ('%c')", i, contenido[i], contenido[i]);
-            }
             t_rsp_KM respuesta = escribir_dir(dir_fisica, tamanio, contenido, 0);
             send(cliente_fd,&respuesta,sizeof(respuesta),0);
             free(contenido);
@@ -99,7 +94,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             }
             char* instruccion = leer_instruccion_de_archivo(proceso->path_instrucciones,pc);
             if(instruccion==NULL){
-                log_error(logger,"Leer_instruccion_de_archivo devolvio NULL. PID: %d - PC: %d - Path: %s",pid,pc,proceso->path_instrucciones);
                 resp= ERROR;
                 send(cliente_fd,&resp, sizeof(resp),0);
                 break;
@@ -108,7 +102,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
             resp = OK;
             send(cliente_fd,&resp, sizeof(resp),0);
             int tamanio=strlen(instruccion);
-            log_info(logger,"Estoy mandando tamanio %d \n",tamanio);
             send(cliente_fd,&tamanio, sizeof(int),0);
             send(cliente_fd,instruccion,tamanio,0);
             log_info(logger, "## PID: %d - Obtener instrucción: %d - Instrucción: %s \n", pid, pc, instruccion);
@@ -144,7 +137,6 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
                 break;
             }
             actualizar_contexto(proceso,&contexto);
-            log_info(logger,"Guarde contexto de pid %d \n",pid);
             t_rsp_KM exito = OK;
             send(cliente_fd,&exito, sizeof(exito),0);
             break;
@@ -152,9 +144,7 @@ void manejar_operacion(int cliente_fd, t_operacion cod_op){
         case OP_SUSPEND:{
             int pid;
             recv(cliente_fd,&pid,sizeof(int),MSG_WAITALL);
-            log_info(logger,"Me pidieron suspender proceso %d \n",pid);
             t_proceso_control* p = buscar_proceso_por_pid(pid);
-            log_info(logger,"Encontre el proceso %d \n",pid);
             int ret = suspender_proceso(p);
             send(cliente_fd,&ret, sizeof(int),0);
             break;
@@ -249,7 +239,6 @@ t_rsp_KM agregar_segmento(int pid, uint32_t tamanio,int id_segmento){
         free(nuevo_segmento);
         pthread_mutex_unlock(&mutex_lista_segmentos);
         pthread_mutex_unlock(&mutex_lista_huecos);
-        log_error(logger, "## PID: %d - No se encontró un hueco libre adecuado para el segmento %d de tamaño %d", pid, nuevo_segmento->id_segmento, tamanio);
         return FRAGMENTACION_EXT;
     }
     t_hueco* hueco_elegido;
@@ -308,7 +297,6 @@ t_stick* donde_guardo(uint32_t direccion){
     uint32_t base, limite;
     t_stick* resultado = NULL;
     pthread_mutex_lock(&mutex_lista_sticks);
-    log_error(logger, "Buscando %u entre %d sticks\n", direccion, list_size(sticks));
     for (int i=0; i<list_size(sticks);i++){
         t_stick* pruebo = list_get (sticks, i);
         base=pruebo->base;
@@ -359,7 +347,6 @@ t_rsp_KM eliminar_segmento (int pid, int id_segmento){
 t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t b_leidos){
     t_stick* stick = donde_guardo(direccion);
     if(stick==NULL){
-        log_error(logger, "No encuentro stick para direccion %u (tamanio %u)\n", direccion, tamanio);
         return ERROR;
     }
     t_operacion op = OP_READ_MEM;
@@ -381,9 +368,6 @@ t_rsp_KM leer_dir(uint32_t direccion, uint32_t tamanio, uint8_t* leido,uint32_t 
     b_leidos += tam;
     uint32_t siguiente_base = direccion + tam;
     uint32_t restante = tamanio - tam;
-    for (int i = 0; i < tamanio; i++) {
-        log_info(logger, "byte[%d] = 0x%02x ('%c')", i, leido[i], leido[i]);
-    }
     return leer_dir(siguiente_base,restante,leido,b_leidos);
 }
 
@@ -465,7 +449,6 @@ void enviar_segmentos(int cliente_fd, t_list* segmentos) {
     if (segmentos != NULL) {
         cantidad_segmentos = list_size(segmentos);
     }
-    log_info(logger, "KM envia cantidad_segmentos: %d", cantidad_segmentos);
     send(cliente_fd, &cantidad_segmentos, sizeof(int), 0);
     for (int i = 0; i < cantidad_segmentos; i++) {
         t_segmento* segmento = list_get(segmentos, i);
@@ -504,8 +487,6 @@ int suspender_proceso(t_proceso_control* proceso){
         }
         eliminar_segmento(proceso->pid, s->id_segmento);
     }
-    if(cantidad==0){log_info(logger,"No se mandan segmentos a SWAP porque no hay\n");}
-    log_info(logger,"Se suspendio proceso %d \n",proceso->pid);
     return 0;
 }
 

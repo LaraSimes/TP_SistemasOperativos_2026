@@ -2,7 +2,6 @@
 void manejar_operacion(t_operacion op){
     switch(op){
         case OP_SUSPEND:{
-            log_info(logger,"Recibi pedido de suspensión\n");
             int ret = 0;
             uint32_t direccion, bloque;
             uint8_t* contenido = calloc(1, tamanio_bloque);
@@ -19,7 +18,7 @@ void manejar_operacion(t_operacion op){
             }
             send(socket_km,&ret,sizeof(int),0);
             free(contenido);
-            log_info(logger, "Bloque %d escrito \n",bloque);
+            log_info(logger, "##Escritura en bloque: %d \n",bloque);
             break;
         }
 
@@ -39,11 +38,11 @@ void manejar_operacion(t_operacion op){
             send(socket_km,&ret,sizeof(int),0);
             if (send(socket_km,contenido,tamanio_bloque,0)<0){
                 free(contenido);
-                log_error(logger,"Error enviando bloque %d \n",bloque);
+                log_info(logger,"Error enviando bloque %d \n",bloque);
                 break;
             }
             free(contenido);
-            log_info(logger,"Bloque %d leido \n",bloque);
+            log_info(logger,"##Lectura del bloque: %d \n",bloque);
             break;
         }
         default:
