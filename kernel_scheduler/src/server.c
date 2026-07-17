@@ -111,8 +111,22 @@ void* atender_cliente(void* arg) {
                 io -> tipo = tipo_io;
                 io -> pid_actual = -1;
                 io -> cola_espera = queue_create();
-                list_add(lista_ios, io);         
+                list_add(lista_ios, io);
                 log_info(logger, "## IO Conectado");
+
+                // Si había un proceso esperando este tipo de IO desde antes
+                // de que este IO se conectara (BLOCK o SUSP_BLOCK), despachárselo
+                // ahora en vez de dejarlo esperando indefinidamente, o hasta que
+                // venza el SUSPENSION_TIMEOUT sin que nadie lo atienda nunca.
+                t_pcb* pendiente = peek_en_block_por_tipo_io(tipo_io);
+                if (pendiente == NULL) pendiente = peek_en_susp_block_por_tipo_io(tipo_io);
+                if (pendiente != NULL) {
+                    pthread_mutex_lock(&mutex_ios);
+                    io->libre = 0;
+                    io->pid_actual = pendiente->pid;
+                    pthread_mutex_unlock(&mutex_ios);
+                    enviar_trabajo_io(io, pendiente);
+                }
             break;
         case MOD_KERNEL_MEMORY:
                 log_info(logger, "## Kernel Memory conectado (canal BSOD)");

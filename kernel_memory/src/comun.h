@@ -42,6 +42,7 @@ typedef struct {
     int id_segmento;
     int orden;
     int proceso;
+    uint32_t tamanio_segmento; // tamaño real del segmento (no el del bloque de swap), para poder restaurarlo en desuspender_proceso sin depender del contenido
 }t_bloque; //estructura para manejo de bloques
 
 extern pthread_mutex_t mutex_lista_procesos;

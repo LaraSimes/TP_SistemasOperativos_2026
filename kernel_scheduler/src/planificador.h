@@ -122,6 +122,8 @@ void aplicar_herencia_prioridad(int owner_pid, int nueva_prioridad);
 void encolar_susp_ready(t_pcb* pcb);
 void intentar_desuspender();
 t_pcb* buscar_en_susp_block(int pid);
+t_pcb* peek_en_block_por_tipo_io(t_tipo_io tipo);
+t_pcb* peek_en_susp_block_por_tipo_io(t_tipo_io tipo);
 void reencolar_ready(t_pcb* pcb);
 void iniciar_compactacion(t_pcb* pcb_original);
 void bsod();

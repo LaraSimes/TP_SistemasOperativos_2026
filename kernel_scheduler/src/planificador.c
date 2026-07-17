@@ -1,4 +1,5 @@
 #include "planificador.h"
+#include <errno.h>
 
 // Variables Globales
 extern t_log* logger;
@@ -362,11 +363,39 @@ t_pcb* buscar_en_block(int pid){
             break;                                                                                          
           }
       }
-      pthread_mutex_unlock(&mutex_block);                                                                       
+      pthread_mutex_unlock(&mutex_block);
       return encontrado;
 }
 
-t_cpu* buscar_cpu_por_fd(int fd) {                                                                            
+t_pcb* peek_en_block_por_tipo_io(t_tipo_io tipo) {
+    pthread_mutex_lock(&mutex_block);
+    t_pcb* encontrado = NULL;
+    for (int i = 0; i < list_size(cola_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_block->elements, i);
+        if (pcb->tipo_io_pendiente == tipo) {
+            encontrado = pcb;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_block);
+    return encontrado;
+}
+
+t_pcb* peek_en_susp_block_por_tipo_io(t_tipo_io tipo) {
+    pthread_mutex_lock(&mutex_susp);
+    t_pcb* encontrado = NULL;
+    for (int i = 0; i < list_size(cola_susp_block->elements); i++) {
+        t_pcb* pcb = list_get(cola_susp_block->elements, i);
+        if (pcb->tipo_io_pendiente == tipo) {
+            encontrado = pcb;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_susp);
+    return encontrado;
+}
+
+t_cpu* buscar_cpu_por_fd(int fd) {
       pthread_mutex_lock(&mutex_cpus);                                                                        
       t_cpu* encontrada = NULL;                                                                                 
       for (int i = 0; i < list_size(lista_cpus); i++) {                                                         
@@ -625,9 +654,35 @@ void iniciar_compactacion(t_pcb* pcb_original) {
       }
       pthread_mutex_unlock(&mutex_cpus);
 
-    // Paso 2: esperar que todas las CPUs devuelvan su proceso
-      while (cpus_pendientes_compactacion > 0)
-          pthread_cond_wait(&cond_compactacion, &mutex_compactacion);
+    // Paso 2: esperar que todas las CPUs devuelvan su proceso, con timeout
+    // defensivo. Es una salvaguarda ante una CPU que haya quedado libre justo
+    // cuando se mandó la interrupción (nada que desalojar de su lado): sin
+    // timeout, cpus_pendientes_compactacion nunca vuelve a 0 y este hilo
+    // queda esperando para siempre.
+      struct timespec limite;
+      clock_gettime(CLOCK_REALTIME, &limite);
+      limite.tv_sec += 5;
+      while (cpus_pendientes_compactacion > 0) {
+          int rc = pthread_cond_timedwait(&cond_compactacion, &mutex_compactacion, &limite);
+          if (rc == ETIMEDOUT) {
+              log_warning(logger, "## Timeout esperando confirmación de compactación de %d CPU(s), continuando de todas formas", cpus_pendientes_compactacion);
+              cpus_pendientes_compactacion = 0;
+              // Si alguna CPU no llegó a confirmar, hay que bajarle la bandera
+              // acá mismo: si no, queda en true para siempre y la próxima vez
+              // que esa CPU reporte un CONTINUAR normal (sin relación con esta
+              // compactación ni ninguna otra), server.c lo va a malinterpretar
+              // como la respuesta tardía a este desalojo, metiendo ese PCB en
+              // lista_desalojados sin que haya ninguna compactación activa que
+              // después lo vuelva a encolar — el proceso queda perdido.
+              pthread_mutex_lock(&mutex_cpus);
+              for (int i = 0; i < list_size(lista_cpus); i++) {
+                  t_cpu* cpu = list_get(lista_cpus, i);
+                  cpu->interrupcion_compactacion = false;
+              }
+              pthread_mutex_unlock(&mutex_cpus);
+              break;
+          }
+      }
 
     // Pasos 3 y 4: avisar a KM y esperar fin de compactación
       pthread_mutex_lock(&mutex_km);

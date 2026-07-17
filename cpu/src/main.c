@@ -1,5 +1,6 @@
 #include <utils/hello.h>
 #include "main.h"
+#include <poll.h>
 
 int main(int argc, char *argv[])
 {
@@ -120,9 +121,31 @@ int main(int argc, char *argv[])
     
 
 while (1) {
-    // Esperar PID del KS
+    // Esperar PID del KS, sin dejar de atender el canal de interrupciones:
+    // si KS manda una interrupción de compactación justo cuando la CPU está
+    // libre (sin proceso asignado), hay que drenarla acá o queda para
+    // siempre sin leer en el socket y KS espera su confirmación al pedo.
     int pid;
-    recv(fd_ks, &pid, sizeof(int), MSG_WAITALL);
+    while (1) {
+        struct pollfd fds[2];
+        fds[0].fd = fd_ks;
+        fds[0].events = POLLIN;
+        fds[1].fd = fd_interrupt;
+        fds[1].events = POLLIN;
+        if (poll(fds, 2, -1) < 0) {
+            continue;
+        }
+        if (fds[1].revents & POLLIN) {
+            int interrupcion = 0;
+            recv(fd_interrupt, &interrupcion, sizeof(int), MSG_DONTWAIT);
+            log_info(logger, "## Interrupción de compactación recibida sin proceso asignado, descartada");
+            continue;
+        }
+        if (fds[0].revents & POLLIN) {
+            recv(fd_ks, &pid, sizeof(int), MSG_WAITALL);
+            break;
+        }
+    }
 
     // Pedir contexto a KM
     t_contexto ctx = pedir_contexto(fd_km, pid, logger);

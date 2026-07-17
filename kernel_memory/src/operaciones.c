@@ -523,6 +523,7 @@ t_rsp_KM desuspender_proceso(int pid){
         free(id_ptr);
         t_list* bloqs_segmento=bloq_x_segmento(id,bloques);
         list_sort(bloqs_segmento,ordenar_bloques);
+        uint32_t tamanio_original = ((t_bloque*)list_get(bloqs_segmento,0))->tamanio_segmento;
         tamanio_buffer = tamanio_bloque*list_size(bloqs_segmento);
         uint8_t* buffer=calloc(1,tamanio_buffer);
         if (buffer == NULL) {
@@ -548,7 +549,7 @@ t_rsp_KM desuspender_proceso(int pid){
             recv(fd_SWAP,buffer+offset,tamanio_bloque,MSG_WAITALL);
             offset+=tamanio_bloque;
         }
-        if(agregar_segmento(pid,tamanio_real(buffer,tamanio_buffer),id)<0){
+        if(agregar_segmento(pid,tamanio_original,id)<0){
             free(buffer);
             list_destroy(id_segmentos);
             list_destroy(bloqs_segmento);
@@ -673,6 +674,7 @@ int cargar_bloques(t_segmento* seg, int pid) {
         b->proceso = pid;
         b->id_segmento = seg->id_segmento;
         b->orden = orden;
+        b->tamanio_segmento = seg->tamanio;
         uint32_t a_leer;
         if (restante < tamanio_bloque) {a_leer = restante;}
         else {a_leer = tamanio_bloque;}
