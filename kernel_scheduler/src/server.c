@@ -208,8 +208,7 @@ void* atender_cliente(void* arg) {
                 case SEG_FAULT:
                     log_info(logger, "## (%d) finalizó su ejecución con motivo de SEG_FAULT", pcb->pid);
                     cambiar_estado(pcb, EXIT);
-                    // TEMP: ídem arriba.
-                    // notificar_fin_proceso_km(pcb->pid);
+                    notificar_fin_proceso_km(pcb->pid);
                     free(pcb->path_instrucciones);
                     free(pcb);
                     break;
